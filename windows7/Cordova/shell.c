@@ -659,10 +659,15 @@ HRESULT STDMETHODCALLTYPE OCT_Exec (IOleCommandTarget* This, const GUID *pguidCm
 				 return OLECMDERR_E_NOTSUPPORTED;
 
 			case OLECMDID_SHOWSCRIPTERROR:
+#ifdef _DEBUG
+				// The JavaScript engine reported an error: let it display the error message
+				return E_FAIL;
+#else
 				// The JavaScript engine reported an error: stop running scripts on the page
 				pvaOut->vt = VT_BOOL;
 				pvaOut->boolVal = VARIANT_FALSE;
 				return S_OK;
+#endif
 
 			default:
 				 return OLECMDERR_E_NOTSUPPORTED;
