@@ -206,10 +206,11 @@ void cordova_success_callback(BSTR callback_id, BOOL keep_callback, const wchar_
 	wchar_t *status_str = (message == NULL) ? error_string_from_code(CB_NO_RESULT) : error_string_from_code(CB_OK);
 	wchar_t *result = L"window.cordova.callbackSuccess('%s',{status:%s,keepCallback:%s,message:%s});";
 	wchar_t *buf;
+	size_t buf_size = 1 + wcslen(result) + wcslen(callback_id) + wcslen(status_str) + wcslen(L"false") + wcslen(message);
 	
-	buf = (wchar_t *) malloc(sizeof(wchar_t) * (1 + wcslen(result) + wcslen(callback_id) + wcslen(status_str) + wcslen(L"false") + wcslen(message)));
+	buf = (wchar_t *) malloc(sizeof(wchar_t) * buf_size);
 
-	wsprintf(buf, result, callback_id, status_str, keep_callback?L"true":L"false", message);
+	_snwprintf(buf, buf_size - 1, result, callback_id, status_str, keep_callback?L"true":L"false", message);
 	invoke_js_routine(buf);
 
 	free(buf);
@@ -220,10 +221,11 @@ void cordova_fail_callback(BSTR callback_id, BOOL keep_callback, CallbackStatus 
 	wchar_t *status_str = error_string_from_code(status);
 	wchar_t *result = L"window.cordova.callbackError('%s',{status:%s,keepCallback:%s,message:%s});";
 	wchar_t *buf;
+	size_t buf_size = 1 + wcslen(result) + wcslen(callback_id) + wcslen(status_str) + wcslen(L"false") + wcslen(message);
 	
-	buf = (wchar_t *) malloc(sizeof(wchar_t) * (1 + wcslen(result) + wcslen(callback_id) + wcslen(status_str) + wcslen(L"false") + wcslen(message)));
+	buf = (wchar_t *) malloc(sizeof(wchar_t) * buf_size);
 
-	wsprintf(buf, result, callback_id, status_str, keep_callback?L"true":L"false", message);
+	_snwprintf(buf, buf_size - 1, result, callback_id, status_str, keep_callback?L"true":L"false", message);
 	invoke_js_routine(buf);
 
 	free(buf);
