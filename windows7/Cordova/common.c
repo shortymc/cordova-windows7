@@ -66,6 +66,48 @@ BOOL text_buf_append(TextBuf buf, const wchar_t *text)
 	return text_buf_append_len(buf, text, wcslen(text));
 }
 
+static const wchar_t json_escape_control_chars[] = {
+	0, 0, 0, 0, 0, 0, 0, 0,
+	L'b', L't', L'n', L'v', L'f', L'r'
+};
+BOOL text_buf_append_with_json_escaping_len(TextBuf buf, const wchar_t *text, size_t text_len)
+{
+	size_t required_space = 2 * text_len;
+	size_t inc = (required_space > TEXT_BUF_INC_SIZE) ? required_space : TEXT_BUF_INC_SIZE;
+	size_t pos = 0;
+	wchar_t c;
+
+	// If needed, increase buf size
+	if (buf->len + text_len >= buf->max) {
+		void *ptr = realloc(buf->wbuf, sizeof(wchar_t) * (buf->max + inc + 1));
+		if (!ptr)
+			return FALSE;
+		buf->wbuf = (wchar_t *) ptr;
+
+		buf->max += inc;
+	}
+
+	while(pos < text_len) {
+		c = text[pos++];
+		if(c < sizeof(json_escape_control_chars) / sizeof(json_escape_control_chars[0]) && c >= 8) {
+			buf->wbuf[buf->len++] = L'\\';
+			buf->wbuf[buf->len++] = json_escape_control_chars[c];
+		} else {
+			if(c == L'"' || c == L'\\')
+				buf->wbuf[buf->len++] = L'\\';
+			buf->wbuf[buf->len++] = c;
+		}
+	}
+	buf->wbuf[buf->len] = 0;
+
+	return TRUE;
+}
+
+BOOL text_buf_append_with_json_escaping(TextBuf buf, const wchar_t *text)
+{
+	return text_buf_append_with_json_escaping_len(buf, text, wcslen(text));
+}
+
 wchar_t *text_buf_get(const TextBuf buf)
 {
 	return buf->wbuf;

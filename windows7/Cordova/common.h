@@ -34,6 +34,8 @@ TextBuf text_buf_new(void);
 
 BOOL text_buf_append(TextBuf buf, const wchar_t *text);
 BOOL text_buf_append_len(TextBuf buf, const wchar_t *text, size_t text_len);
+BOOL text_buf_append_with_json_escaping(TextBuf buf, const wchar_t *text);
+BOOL text_buf_append_with_json_escaping_len(TextBuf buf, const wchar_t *text, size_t text_len);
 
 wchar_t *text_buf_get(const TextBuf buf);
 size_t text_buf_get_len(const TextBuf buf);

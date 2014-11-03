@@ -318,7 +318,7 @@ static HRESULT execute_sql(BSTR callback_id, BSTR args)
 						text_buf_append(response, number);						
 					} else if (sqlite3_column_type(stmt, j) == SQLITE_TEXT) {
 						text_buf_append(response, L"\"");
-						text_buf_append(response, (wchar_t *) sqlite3_column_text16(stmt, j));
+						text_buf_append_with_json_escaping(response, (wchar_t *) sqlite3_column_text16(stmt, j));
 						text_buf_append(response, L"\"");
 					} else if (sqlite3_column_type(stmt, j) == SQLITE_NULL) {
 						text_buf_append(response, L"null");
