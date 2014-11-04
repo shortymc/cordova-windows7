@@ -17,6 +17,7 @@
     <ClCompile Include="filetransfer.c" />
     <ClCompile Include="mp4patch.c" />
     <ClCompile Include="compass.c" />
+    <ClCompile Include="console.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="accel.h" />
@@ -35,6 +36,7 @@
     <ClInclude Include="filetransfer.h" />
     <ClInclude Include="mp4patch.h" />
     <ClInclude Include="compass.h" />
+    <ClInclude Include="console.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />
@@ -97,6 +99,9 @@
     </None>
     <None Include="www\notification.html">
       <Filter>html</Filter>
+    </None>
+    <None Include="lib\js\plugin\win7\console.js">
+      <Filter>javascript</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

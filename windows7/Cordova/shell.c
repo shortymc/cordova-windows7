@@ -44,6 +44,7 @@
 #include "file.h"
 #include "filetransfer.h"
 #include "compass.h"
+#include "console.h"
 
 //-------------------------------------------------------------------------------------------------
 
@@ -155,6 +156,7 @@ static void register_cordova_modules()
 	register_cordova_module(CORDOVA_MODULE(File));
 	register_cordova_module(CORDOVA_MODULE(FileTransfer));
 	register_cordova_module(CORDOVA_MODULE(Compass));
+	register_cordova_module(CORDOVA_MODULE(Console));
 }
 
 static void close_cordova_modules()
@@ -170,6 +172,7 @@ static void close_cordova_modules()
 	close_cordova_module(CORDOVA_MODULE(File));
 	close_cordova_module(CORDOVA_MODULE(FileTransfer));
 	close_cordova_module(CORDOVA_MODULE(Compass));
+	close_cordova_module(CORDOVA_MODULE(Console));
 }
 
 static CordovaModule *find_cordova_module(BSTR module_id)

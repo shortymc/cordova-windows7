@@ -48,6 +48,9 @@ module.exports = {
         }, [channel.onCordovaInfoReady]);
     },
     objects: {
+        console: {
+            path: 'cordova/plugin/win7/console'
+        },
         device: {
             path: 'cordova/plugin/win7/device'
         },

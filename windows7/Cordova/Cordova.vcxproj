@@ -93,6 +93,7 @@
     <ClCompile Include="capture.c" />
     <ClCompile Include="common.c" />
     <ClCompile Include="compass.c" />
+    <ClCompile Include="console.c" />
     <ClCompile Include="device.c" />
     <ClCompile Include="file.c" />
     <ClCompile Include="filetransfer.c" />
@@ -111,6 +112,7 @@
     <ClInclude Include="capture.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="compass.h" />
+    <ClInclude Include="console.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="filetransfer.h" />
@@ -127,6 +129,7 @@
   <ItemGroup>
     <None Include="lib\js\exec.js" />
     <None Include="lib\js\platform.js" />
+    <None Include="lib\js\plugin\win7\console.js" />
     <None Include="lib\js\plugin\win7\device.js" />
     <None Include="lib\js\plugin\win7\jsHandler.js" />
     <None Include="lib\js\plugin\win7\SQLError.js" />

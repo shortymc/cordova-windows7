@@ -993,6 +993,9 @@ module.exports = {
         }, [channel.onCordovaInfoReady]);
     },
     objects: {
+        console: {
+            path: 'cordova/plugin/win7/console'
+        },
         device: {
             path: 'cordova/plugin/win7/device'
         },
@@ -3956,6 +3959,44 @@ var contacts = {
 
 module.exports = contacts;
 
+});
+
+// file: lib/win7/plugin/win7/console.js
+define("cordova/plugin/win7/console", function(require, exports, module) {
+var exec = require('cordova/exec');
+
+function logLevel(level, args) {
+	var msg = args[0];
+	if(typeof msg === 'object')
+		msg = JSON.stringify(msg);
+	exec(null, null, "Console", "logLevel", [level, msg]);
+}
+
+var console = {
+    log: function() {
+		logLevel('LOG', arguments);
+	},
+    debug: function() {
+		logLevel('DEBUG', arguments);
+	},
+    trace: function() {
+		logLevel('TRACE', arguments);
+	},
+    info: function() {
+		logLevel('INFO', arguments);
+	},
+    warn: function() {
+		logLevel('WARN', arguments);
+	},
+    error: function() {
+		logLevel('ERROR', arguments);
+	},
+    fatal: function() {
+		logLevel('FATAL', arguments);
+	}
+};
+
+module.exports = console;
 });
 
 // file: lib/common/plugin/device.js
