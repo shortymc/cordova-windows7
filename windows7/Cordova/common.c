@@ -78,7 +78,7 @@ BOOL text_buf_append_with_json_escaping_len(TextBuf buf, const wchar_t *text, si
 	wchar_t c;
 
 	// If needed, increase buf size
-	if (buf->len + text_len >= buf->max) {
+	if (buf->len + required_space >= buf->max) {
 		void *ptr = realloc(buf->wbuf, sizeof(wchar_t) * (buf->max + inc + 1));
 		if (!ptr)
 			return FALSE;
