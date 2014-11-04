@@ -207,8 +207,10 @@ LRESULT DisplayMessage(wchar_t* title, int title_len, wchar_t* message, int mess
 	}
 
 	ret_code = DialogBoxIndirect(GetModuleHandle(0), dlg_template, hWnd, NotificationDialogProc); 
-    free(buf); 
-    return ret_code; 
+    free(buf);
+    if(ret_code >= 0)
+        return ret_code + 1;
+    return 0;
 }
 
 static HRESULT show_dialog(BSTR callback_id, BSTR args)
