@@ -238,9 +238,7 @@ static HRESULT execute_sql(BSTR callback_id, BSTR args)
 			goto out;
 		}
 
-		text_buf_append(response, L"{id:'");
-		text_buf_append(response, tx_id);
-		text_buf_append(response, L"',data:''}");
+		text_buf_append(response, L"''");
 
 		cordova_success_callback(callback_id, FALSE, text_buf_get(response));
 	} else {
@@ -291,9 +289,7 @@ static HRESULT execute_sql(BSTR callback_id, BSTR args)
 		}
 
 		// Execute & prepare response
-		text_buf_append(response, L"{id:'");
-		text_buf_append(response, tx_id);
-		text_buf_append(response, L"',data:[");
+		text_buf_append(response, L"[");
 
 		db_res = sqlite3_step(stmt);
 		if (db_res == SQLITE_ROW) {
@@ -339,7 +335,7 @@ static HRESULT execute_sql(BSTR callback_id, BSTR args)
 			goto out;
 		}
 
-		text_buf_append(response, L"]}");
+		text_buf_append(response, L"]");
 
 		// Success
 		cordova_success_callback(callback_id, FALSE, text_buf_get(response));

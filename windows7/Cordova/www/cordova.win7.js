@@ -4772,8 +4772,6 @@ var channel = require("cordova/channel"),
     utils = require('cordova/utils'),
     exec = require('cordova/exec');
 
-var queryQueue = {};
-
 var Rows = function () {
     this.resultSet = [];    // results array
     this.length = 0;        // number of rows
@@ -4787,83 +4785,10 @@ var Result = function () {
     this.rows = new Rows();
 };
 
-function completeQuery(result) {
-    var id = result.id;
-    var data = result.data;
-    var query = queryQueue[id];
-    if (query) {
-        try {
-            delete queryQueue[id];
-
-            // Get transaction
-            var tx = query.tx;
-
-            // If transaction hasn't failed
-            // Note: We ignore all query results if previous query
-            //       in the same transaction failed.
-            if (tx && tx.queryList[id]) {
-
-                // Save query results
-                var r = new Result();
-                r.rows.resultSet = data;
-                r.rows.length = data.length;
-                try {
-                    if (typeof query.successCallback === 'function') {
-                        query.successCallback(query.tx, r);
-                    }
-                } catch (ex) {
-                    console.log("executeSql error calling user success callback: " + ex);
-                }
-
-                tx.queryComplete(id);
-            }
-        } catch (e) {
-            console.log("executeSql error: " + e);
-        }
-    }
-}
-
-function failQuery(result) {
-    var id = result.id;
-    var reason = result.reason;
-    var query = queryQueue[id];
-    if (query) {
-        try {
-            delete queryQueue[id];
-
-            // Get transaction
-            var tx = query.tx;
-
-            // If transaction hasn't failed
-            // Note: We ignore all query results if previous query
-            //       in the same transaction failed.
-            if (tx && tx.queryList[id]) {
-                tx.queryList = {};
-
-                try {
-                    if (typeof query.errorCallback === 'function') {
-                        query.errorCallback(query.tx, reason);
-                    }
-                } catch (ex) {
-                    console.log("executeSql error calling user error callback: " + ex);
-                }
-
-                tx.queryFailed(id, reason);
-            }
-
-        } catch (e) {
-            console.log("executeSql error: " + e);
-        }
-    }
-}
-
 var Query = function (tx) {
 
     // Set the id of the query
     this.id = utils.createUUID();
-
-    // Add this query to the queue
-    queryQueue[this.id] = this;
 
     // Init result
     this.resultSet = [];
@@ -4879,6 +4804,64 @@ var Query = function (tx) {
     this.errorCallback = null;
 
 };
+
+Query.prototype.complete = function(data) {
+    var id = this.id;
+	try {
+		// Get transaction
+		var tx = this.tx;
+
+		// If transaction hasn't failed
+		// Note: We ignore all query results if previous query
+		//       in the same transaction failed.
+		if (tx && tx.queryList[id]) {
+
+			// Save query results
+			var r = new Result();
+			r.rows.resultSet = data;
+			r.rows.length = data.length;
+			try {
+				if (typeof this.successCallback === 'function') {
+					this.successCallback(tx, r);
+				}
+			} catch (ex) {
+				console.log("executeSql error calling user success callback: " + ex);
+			}
+
+			tx.queryComplete(id);
+		}
+	} catch (e) {
+		console.log("executeSql error: " + e);
+	}
+}
+
+Query.prototype.fail = function(error) {
+    var id = this.id;
+	try {
+		// Get transaction
+		var tx = this.tx;
+
+		// If transaction hasn't failed
+		// Note: We ignore all query results if previous query
+		//       in the same transaction failed.
+		if (tx && tx.queryList[id]) {
+			tx.queryList = {};
+
+			try {
+				if (typeof this.errorCallback === 'function') {
+					this.errorCallback(tx, error);
+				}
+			} catch (ex) {
+				console.log("executeSql error calling user error callback: " + ex);
+			}
+
+			tx.queryFailed(id, error);
+		}
+
+	} catch (e) {
+		console.log("executeSql error: " + e);
+    }
+}
 
 var Transaction = function (database) {
     this.db = database;
@@ -4915,7 +4898,7 @@ Transaction.prototype.queryComplete = function (id) {
     }
 };
 
-Transaction.prototype.queryFailed = function (id, reason) {
+Transaction.prototype.queryFailed = function (id, error) {
 
     // The sql queries in this transaction have already been run, since
     // we really don't have a real transaction implemented in native code.
@@ -4925,7 +4908,7 @@ Transaction.prototype.queryFailed = function (id, reason) {
 
     if (this.errorCallback) {
         try {
-            this.errorCallback(reason);
+            this.errorCallback(error);
         } catch (e) {
             console.log("Transaction error calling user error callback: " + e);
         }
@@ -4940,14 +4923,22 @@ Transaction.prototype.executeSql = function (sql, params, successCallback, error
 
     // Create query and add to queue
     var query = new Query(this);
-    queryQueue[query.id] = query;
 
     // Save callbacks
     query.successCallback = successCallback;
     query.errorCallback = errorCallback;
 
     // Call native code
-    exec(completeQuery, failQuery, "Storage", "executeSql", [this.db.id, sql, params, query.id]);
+    exec(function(data) {
+			query.complete(data);
+		},
+		function(error) {
+			query.fail(error);
+		},
+		"Storage",
+		"executeSql",
+		[this.db.id, sql, params, query.id]
+	);
 };
 
 var Database = function (dbId) {
