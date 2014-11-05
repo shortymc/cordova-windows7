@@ -34,6 +34,7 @@
 
 #include "shell.h"
 #include "common.h"
+#include "resource.h"
 #include "device.h"
 #include "accel.h"
 #include "capture.h"
@@ -45,6 +46,7 @@
 #include "filetransfer.h"
 #include "compass.h"
 #include "console.h"
+
 
 //-------------------------------------------------------------------------------------------------
 
@@ -1428,7 +1430,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		0,
 		0,
 		0,
-		0,	// >>> icon 
+		LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ApplicationIcon)),
 		LoadCursor(NULL, IDC_ARROW),
 		0, // must handle background paint
 		0,

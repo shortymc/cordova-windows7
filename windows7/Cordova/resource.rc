@@ -38,3 +38,5 @@ BEGIN
 END
 
 IDB_ToolBar BITMAP "toolbar.bmp"
+
+IDI_ApplicationIcon ICON "icon.ico"

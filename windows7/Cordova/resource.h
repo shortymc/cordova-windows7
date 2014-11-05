@@ -19,6 +19,7 @@
 
 #define IDB_ToolBar						100
 #define IDD_CaptureSettings             101
+#define IDI_ApplicationIcon             106
 
 // Lists in capture settings dialog
 #define IDC_Camera						102
