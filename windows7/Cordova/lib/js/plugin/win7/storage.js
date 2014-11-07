@@ -208,7 +208,8 @@ var WinStorage = function (dbName) {
         this.db.transaction(
         function (transaction) {
             var i;
-            transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id NVARCHAR(40) PRIMARY KEY, body NVARCHAR(255))');
+            transaction.executeSql('PRAGMA encoding = "UTF-8"');
+            transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id VARCHAR(40) PRIMARY KEY, body VARCHAR(255))');
             transaction.executeSql('SELECT * FROM storage', [], function (tx, result) {
                 for (var i = 0; i < result.rows.length; i++) {
                     storage[result.rows.item(i).id] = result.rows.item(i).body;
@@ -229,7 +230,7 @@ var WinStorage = function (dbName) {
             storage[key] = val;
             this.db.transaction(
           function (transaction) {
-              transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id NVARCHAR(40) PRIMARY KEY, body NVARCHAR(255))');
+              transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id VARCHAR(40) PRIMARY KEY, body VARCHAR(255))');
               transaction.executeSql('REPLACE INTO storage (id, body) values(?,?)', [key, val]);
           }
         );
@@ -242,7 +243,7 @@ var WinStorage = function (dbName) {
             this.length--;
             this.db.transaction(
           function (transaction) {
-              transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id NVARCHAR(40) PRIMARY KEY, body NVARCHAR(255))');
+              transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id VARCHAR(40) PRIMARY KEY, body VARCHAR(255))');
               transaction.executeSql('DELETE FROM storage where id=?', [key]);
           }
         );
@@ -252,7 +253,7 @@ var WinStorage = function (dbName) {
             this.length = 0;
             this.db.transaction(
           function (transaction) {
-              transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id NVARCHAR(40) PRIMARY KEY, body NVARCHAR(255))');
+              transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id VARCHAR(40) PRIMARY KEY, body VARCHAR(255))');
               transaction.executeSql('DELETE FROM storage', []);
           }
         );
