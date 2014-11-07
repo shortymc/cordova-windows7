@@ -79,7 +79,7 @@ static void json_init_cursor(wchar_t * buf, JsonCursor *cursor)
 static BOOL json_parse_string(JsonCursor *cursor, JsonItem item)
 {
 	wchar_t *buf = cursor->buf;
-	BOOL escape;
+	BOOL escape = FALSE;
 
 	cursor->pos++; // Initial '"'
 	item->value.as_string = buf + cursor->pos;
@@ -107,7 +107,7 @@ static BOOL json_parse_number(JsonCursor *cursor, JsonItem item)
 	wchar_t *value = buf + cursor->pos;
 	size_t value_len = 0;
 	BOOL has_dot = (buf[cursor->pos] == '.') ? TRUE : FALSE;
-	INT64 val64;
+	INT64 val64 = 0;
 
 	cursor->pos++;
 	value_len++;
