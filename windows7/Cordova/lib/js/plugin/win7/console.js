@@ -4,6 +4,8 @@ function logLevel(level, args) {
 	var msg = args[0];
 	if(typeof msg === 'object')
 		msg = JSON.stringify(msg);
+	else
+		msg = String(msg);
 	exec(null, null, "Console", "logLevel", [level, msg]);
 }
 
