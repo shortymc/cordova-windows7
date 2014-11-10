@@ -73,6 +73,7 @@ static HRESULT console_log_level(BSTR callback_id, BSTR args)
 	free(level);
 	free(msg);
 
+	cordova_success_callback(callback_id, FALSE, NULL_MESSAGE);
 out:
 	json_free_args(array);
 
