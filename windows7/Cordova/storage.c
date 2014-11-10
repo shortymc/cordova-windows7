@@ -87,6 +87,7 @@ static HRESULT remove_database(BSTR callback_id, BSTR args)
 	JsonArray array;
 	JsonItem item;
 	wchar_t *db_name = NULL;
+	wchar_t *folderpath;
 
 	if (db_list == NULL)
 		goto out;
@@ -111,9 +112,12 @@ static HRESULT remove_database(BSTR callback_id, BSTR args)
 	if (cordova_db) {
 		remove_cordova_db(cordova_db);
 
-		if(!SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, path))) 
+		if(!SUCCEEDED(SHGetKnownFolderPath(&CORDOVA_STORAGE_DATABASE_FOLDERID, 0, NULL, &folderpath)))
 			goto out;
-		PathAppend(path, L"Cordova\\db");
+
+		wcscpy_s((wchar_t *)&path, MAX_PATH, folderpath);
+		CoTaskMemFree(folderpath);
+		PathAppend(path, CORDOVA_STORAGE_DATABASE_SUBDIR);
 		PathAppend(path, db_name);
 
 		DeleteFile(path);
@@ -135,11 +139,14 @@ static HRESULT open_database(BSTR callback_id, BSTR args, VARIANT *result)
 	JsonArray array;
 	JsonItem item;
 	wchar_t *db_name;
+	wchar_t *folderpath;
 
-	if(!SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, path))) 
+	if(!SUCCEEDED(SHGetKnownFolderPath(&CORDOVA_STORAGE_DATABASE_FOLDERID, 0, NULL, &folderpath)))
 		return E_FAIL;
 
-	PathAppend(path, L"Cordova\\db");
+	wcscpy_s((wchar_t *)&path, MAX_PATH, folderpath);
+	CoTaskMemFree(folderpath);
+	PathAppend(path, CORDOVA_STORAGE_DATABASE_SUBDIR);
 	res = SHCreateDirectory(NULL,path);
 	if(!SUCCEEDED(res) && (res != ERROR_FILE_EXISTS) && (res != ERROR_ALREADY_EXISTS))
 		return E_FAIL;

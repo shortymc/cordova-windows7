@@ -48,13 +48,13 @@ static HRESULT console_log_level(BSTR callback_id, BSTR args)
 
 	if (!console_is_open) {
 		console_is_open = TRUE;
-#ifdef _DEBUG
-		// open new window for debug build
+#ifdef CORDOVA_CONSOLE_OPEN_NEW_WINDOW
+		// open new window
 		AllocConsole();
 		SetConsoleTitle(L"Debug Console");
 		console_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
 #else
-		// use existing console for release build (only visible when started from command prompt)
+		// use existing console (only visible when started from command prompt)
 		AttachConsole(ATTACH_PARENT_PROCESS);
 		console_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
 		WriteConsole(console_stdout, L"\r\n", 2, NULL, NULL);

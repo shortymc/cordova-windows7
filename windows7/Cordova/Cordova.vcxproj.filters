@@ -37,6 +37,7 @@
     <ClInclude Include="mp4patch.h" />
     <ClInclude Include="compass.h" />
     <ClInclude Include="console.h" />
+    <ClInclude Include="configuration.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

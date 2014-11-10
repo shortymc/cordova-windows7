@@ -36,8 +36,6 @@ static DWORD full_path_size;
 static wchar_t full_path[MAX_PATH + 1];
 static wchar_t url[INTERNET_MAX_URL_LENGTH + 1];
 
-static const wchar_t *temporary_dir;
-static const wchar_t *persistent_dir = L"persistent";
 #define MAX_CORDOVA_FS_NAME 32
 #define URL_START L"file:///"
 #define DRIVE_COLUMN_POS 9
@@ -1238,26 +1236,29 @@ static HRESULT file_module_exec(BSTR callback_id, BSTR action, BSTR args, VARIAN
 static void file_module_init(void)
 {
 	int result;
+	wchar_t *folderpath;
+	wchar_t *temporary_dir;
 
 	// Initialize root paths
 	*temporary_root_path = 0;
 	*persistent_root_path = 0;
 
-	if(SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, persistent_root_path))) {
-		PathAppend(persistent_root_path, L"Cordova\\fs");
-		wcscpy_s(temporary_root_path, MAX_PATH, persistent_root_path);
+	if(SUCCEEDED(SHGetKnownFolderPath(&CORDOVA_FILE_PERSISTENT_STORAGE_FOLDERID, 0, NULL, &folderpath))) {
+		wcscpy_s(persistent_root_path, MAX_PATH, folderpath);
+		PathAppend(persistent_root_path, CORDOVA_FILE_PERSISTENT_STORAGE_SUBDIR);
+		CoTaskMemFree(folderpath);
 
-		temporary_dir = get_device_uuid();
-		PathAppend(temporary_root_path, temporary_dir);
-		PathAppend(persistent_root_path, persistent_dir);
-
-		result = SHCreateDirectory(NULL,temporary_root_path);
-		if(!SUCCEEDED(result) && (result != ERROR_FILE_EXISTS) && (result != ERROR_ALREADY_EXISTS))
-			*temporary_root_path = 0;
-
-		result = SHCreateDirectory(NULL,persistent_root_path);
+		result = SHCreateDirectory(NULL, persistent_root_path);
 		if(!SUCCEEDED(result) && (result != ERROR_FILE_EXISTS) && (result != ERROR_ALREADY_EXISTS))
 			*persistent_root_path = 0;
+	}
+	if(SUCCEEDED(GetTempPath(MAX_PATH, temporary_root_path))) {
+		temporary_dir = get_device_uuid();
+		PathAppend(temporary_root_path, temporary_dir);
+
+		result = SHCreateDirectory(NULL, temporary_root_path);
+		if(!SUCCEEDED(result) && (result != ERROR_FILE_EXISTS) && (result != ERROR_ALREADY_EXISTS))
+			*temporary_root_path = 0;
 	}
 }
 

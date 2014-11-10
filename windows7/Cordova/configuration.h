@@ -1,5 +1,3 @@
-// Copyright 2012 Intel Corporation
-//
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -17,32 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include <knownfolders.h>
-#include "configuration.h"
 
-typedef enum {
-	WM_EXEC_JS_SCRIPT = WM_USER,
-	WM_USER_ACCEL,
-	WM_USER_COMPASS
-};
+#define APP_NAME		L"Cordova Application"
+#define BASE_URL		L"www\\index.html"
 
-#define ASSERT(x) if (!(x)) __debugbreak()
+#define CORDOVA_REG_KEY	L"Software\\Intel\\Cordova"
 
-struct _TextBuf;
-typedef struct _TextBuf *TextBuf;
+// where to store persistent file storage and databases
+// FolderIDs: e.g. FOLDERID_RoamingAppData, FOLDERID_LocalAppData, FOLDERID_ProgramData
+#define CORDOVA_FILE_PERSISTENT_STORAGE_FOLDERID FOLDERID_RoamingAppData
+#define CORDOVA_FILE_PERSISTENT_STORAGE_SUBDIR L"Cordova\\fs"
 
-TextBuf text_buf_new(void);
+#define CORDOVA_STORAGE_DATABASE_FOLDERID FOLDERID_RoamingAppData
+#define CORDOVA_STORAGE_DATABASE_SUBDIR L"Cordova\\db"
 
-BOOL text_buf_append(TextBuf buf, const wchar_t *text);
-BOOL text_buf_append_len(TextBuf buf, const wchar_t *text, size_t text_len);
-BOOL text_buf_append_with_json_escaping(TextBuf buf, const wchar_t *text);
-BOOL text_buf_append_with_json_escaping_len(TextBuf buf, const wchar_t *text, size_t text_len);
 
-wchar_t *text_buf_get(const TextBuf buf);
-size_t text_buf_get_len(const TextBuf buf);
+#define CORDOVA_FILETRANSFER_USER_AGENT L"Cordova"
 
-void text_buf_reset(TextBuf buf);
-void text_buf_free(TextBuf buf);
 
-void set_thread_name (DWORD thread_id, char* thread_name);
-
+#ifdef _DEBUG
+// opens the console in a new window (otherwise it uses the default console which is only visible when started from command prompt)
+# define CORDOVA_CONSOLE_OPEN_NEW_WINDOW 1
+#endif

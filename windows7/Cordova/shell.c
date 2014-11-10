@@ -90,9 +90,6 @@ int oct_ref_count;
 const	wchar_t gate_name[]= L"CordovaExec";
 #define DISPID_GATE	8086
 
-#define APP_NAME		L"Cordova Application"
-#define BASE_URL		L"www\\index.html"
-
 #define IE_GPU_REG_KEY		L"Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_GPU_RENDERING"		// Registry key enabling GPU acceleration
 #define IE_COMPAT_REG_KEY	L"Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION"	// Registry key controlling browser version emulation
 

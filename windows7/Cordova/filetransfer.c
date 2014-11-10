@@ -102,7 +102,7 @@ static HRESULT download(BSTR callback_id, BSTR args)
 	}
 
 	// Open source url
-	inet = InternetOpen(L"Cordova", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+	inet = InternetOpen(CORDOVA_FILETRANSFER_USER_AGENT, INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
 	if (!inet) {
 		file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, CONNECTION_ERR);
 		goto out;
@@ -276,7 +276,7 @@ static HRESULT upload(BSTR callback_id, BSTR args)
 	file_size.LowPart = GetFileSize(file, &file_size.HighPart);
 
 	// Connect to server
-	inet = InternetOpen(L"Cordova", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+	inet = InternetOpen(CORDOVA_FILETRANSFER_USER_AGENT, INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
 	if (!inet) {
 		file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, CONNECTION_ERR);
 		goto out;
