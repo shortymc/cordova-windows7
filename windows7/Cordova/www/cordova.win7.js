@@ -3966,11 +3966,7 @@ define("cordova/plugin/win7/console", function(require, exports, module) {
 var exec = require('cordova/exec');
 
 function logLevel(level, args) {
-	var msg = args[0];
-	if(typeof msg === 'object')
-		msg = JSON.stringify(msg);
-	else
-		msg = String(msg);
+	var msg = String(args[0]);
 	exec(null, null, "Console", "logLevel", [level, msg]);
 }
 
