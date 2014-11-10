@@ -33,7 +33,7 @@
 #include "common.h"
 
 #define CORDOVA_MACHINE_ID		L"MachineID"
-#define CORDOVA_VERSION			L"2.1.0"
+#define CORDOVA_VERSION			L"2.9.1"
 #define CORDOVA_VERSION_LEN		5
 
 // A valid UUID string should look like this: f7b38bf1-2ece-4e2a-94a6-e791863f0109
@@ -111,20 +111,26 @@ int acquire_unique_id(wchar_t buf[UUID_BUF_LEN])
 static HRESULT get_device_info(BSTR callback_id)
 {
 	// Set initial Cordova global variables and fire up deviceready event
-	static wchar_t buf[100 + UUID_BUF_LEN + COMPUTER_NAME_BUF_LEN + CORDOVA_VERSION_LEN];
-	wchar_t computer_name[COMPUTER_NAME_BUF_LEN];
-	DWORD len = COMPUTER_NAME_BUF_LEN;
+#define MODEL_NAME_LEN 5
+	static wchar_t buf[100 + UUID_BUF_LEN + MODEL_NAME_LEN + CORDOVA_VERSION_LEN];
+	wchar_t model[] = L"Win32";
+	BOOL bIsWow64;
 	OSVERSIONINFOEX osver;
 	wchar_t* platform = L"Windows";
 
-	computer_name[0] = L'\0';
-	GetComputerName(computer_name, &len);
+	// be compatible with Cordova for Windows 8: return "Win32" or "Win64" as model
+	if(IsWow64Process(GetCurrentProcess(), &bIsWow64)) {
+		if(bIsWow64) {
+			model[3] = L'6';
+			model[4] = L'4';
+		}
+	}
 
 	osver.dwOSVersionInfoSize = sizeof(osver);
 	GetVersionEx((LPOSVERSIONINFO)&osver);
 
-	wsprintf(buf, L"{uuid:'%s',name:'%s',platform:'%s',version:'%d.%d',cordova:'%s'}",
-				uuid, computer_name, platform, osver.dwMajorVersion, osver.dwMinorVersion, CORDOVA_VERSION);
+	wsprintf(buf, L"{uuid:'%s',model:'%s',platform:'%s',version:'%d.%d',cordova:'%s'}",
+				uuid, &model, platform, osver.dwMajorVersion, osver.dwMinorVersion, CORDOVA_VERSION);
 
 	cordova_success_callback(callback_id, FALSE, buf);
 

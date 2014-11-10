@@ -221,9 +221,11 @@ static HRESULT show_dialog(BSTR callback_id, BSTR args)
 	wchar_t* buttons = 0;
 	wchar_t* title = 0;
 	int num_buttons = 0;
+	int i;
 	wchar_t* btn_text[MAX_BUTTONS];
 	int btn_text_len[MAX_BUTTONS];
 	unsigned int cursor = 0;
+	JsonItem button;
 
 	JsonArray array;
 	JsonItem item;
@@ -233,7 +235,7 @@ static HRESULT show_dialog(BSTR callback_id, BSTR args)
 	// Validate array contents
 	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,
 									JSON_VALUE_STRING,
-									JSON_VALUE_STRING,
+									JSON_VALUE_ARRAY,
 									JSON_VALUE_INVALID)) {
 		json_free_args(array);
 		return -1;
@@ -249,29 +251,13 @@ static HRESULT show_dialog(BSTR callback_id, BSTR args)
 
 	// buttons
 	item = json_array_get_next(item);
-	buttons = json_get_string_value(item);
-	if (*buttons == 0)
-		goto button_done; // No button ; consider that a valid use case
-
-button_parsing:
-
-	btn_text[num_buttons] = buttons + cursor;
-	btn_text_len[num_buttons] = 0;
-
-	// Search for separator
-	while (cursor < wcslen(buttons) && *(buttons + cursor) != L',') {
-		cursor++;
-		btn_text_len[num_buttons]++;
+	button = json_get_array_value(item);
+	while (button != NULL) {
+		btn_text[num_buttons] = json_get_string_value(button);
+		btn_text_len[num_buttons] = wcslen(btn_text[num_buttons]);
+		num_buttons++;
+		button = json_array_get_next(button);
 	}
-
-	num_buttons++;
-
-	cursor++;
-	
-	if (cursor < wcslen(buttons) && num_buttons < MAX_BUTTONS)
-		goto button_parsing;
-
-button_done:
 
 	json_free_args(array);
 
@@ -283,6 +269,8 @@ button_done:
 		free(title);
 	if (buttons)
 		free(buttons);
+	for(i=0; i<num_buttons; i++)
+		free(btn_text[i]);
 
 	wsprintf(buf, L"%d", ret_code);
 
