@@ -42,8 +42,36 @@ typedef enum {
 	TRANSFER_NO_ERR = 0,
 	FILE_NOT_FOUND_ERR,
 	INVALID_URL_ERR,
-	CONNECTION_ERR
+	CONNECTION_ERR,
+	FT_ABORT_ERR
 } FileTransferError;
+
+#define conn_is_aborted(id) (id == abort_id)
+static INT abort_id = 0;
+
+static HRESULT ft_abort(BSTR callback_id, BSTR args) {
+	HRESULT res = S_OK;
+	JsonArray array;
+	JsonItem item;
+
+	// Validate array contents
+	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_INT,
+											JSON_VALUE_INVALID)) {
+		res = E_FAIL;
+		goto out;
+	}
+
+	// Get args
+	item = json_array_get_first(array);
+	abort_id = json_get_int_value(item);
+
+	cordova_success_callback(callback_id, FALSE, NULL_MESSAGE);
+
+out:
+	json_free_args(array);
+
+	return res;
+}
 
 static void file_transfer_fail_callback(wchar_t *callback_id, wchar_t *src, wchar_t *target, DWORD http_status, FileTransferError err)
 {
@@ -58,6 +86,20 @@ static void file_transfer_fail_callback(wchar_t *callback_id, wchar_t *src, wcha
 	free(error_text);
 }
 
+static void file_transfer_progress_callback(wchar_t *callback_id, INT64 loaded, INT64 total)
+{
+	const wchar_t *format = L"{lengthComputable:%s,loaded:%I64d,total:%I64d}";
+	wchar_t *progress_text;
+	BOOL lengthComputable = total > 0 && loaded <= total;
+
+	progress_text = (wchar_t *) malloc(sizeof(wchar_t) * (1 + wcslen(format) + 40));
+	wsprintf(progress_text, format, lengthComputable?L"true":L"false", loaded, total);
+
+	cordova_success_callback(callback_id, TRUE, progress_text);
+
+	free(progress_text);
+}
+
 static HRESULT download(BSTR callback_id, BSTR args)
 {
 	HRESULT res = S_OK;
@@ -66,22 +108,29 @@ static HRESULT download(BSTR callback_id, BSTR args)
 	CordovaFsError fs_err;
 	wchar_t *src_uri = NULL;
 	wchar_t *dst_uri = NULL;
+	BOOL trust_all_hosts;
+	INT conn_id = -1;
 	HINTERNET inet = NULL;
 	HINTERNET file = NULL;
 	DWORD context = (DWORD) callback_id;
 	DWORD read;
+	INT64 read_total = 0;
 	HANDLE local_file = INVALID_HANDLE_VALUE;
 	wchar_t *entry;
 	DWORD index = 0;
 	DWORD status;
 	DWORD status_len = sizeof(status);
+	INT64 content_length = -1;
+	DWORD content_length_len = sizeof(content_length);
 	wchar_t full_path[MAX_PATH + 1];
 	DWORD full_path_size;
 	BYTE *buf = NULL;
 
 	// Validate array contents
-	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,		// 0- source uri
-											JSON_VALUE_STRING,				// 1- target path
+	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,			// 0- source uri
+											JSON_VALUE_STRING,					// 1- target path
+											JSON_VALUE_BOOL | JSON_VALUE_NULL,	// 2- trust all hosts
+											JSON_VALUE_INT | JSON_VALUE_NULL,	// 3- connection id
 											JSON_VALUE_INVALID)) {
 		res = E_FAIL;
 		goto out;
@@ -92,6 +141,15 @@ static HRESULT download(BSTR callback_id, BSTR args)
 	src_uri = json_get_string_value(item);
 	item = json_array_get_next(item);
 	dst_uri = json_get_string_value(item);
+	item = json_array_get_next(item);
+	if (json_get_value_type(item) != JSON_VALUE_NULL) {
+		trust_all_hosts = json_get_bool_value(item);
+	}
+	item = json_array_get_next(item);
+	if (json_get_value_type(item) != JSON_VALUE_NULL) {
+		conn_id = json_get_int_value(item);
+	}
+
 
 	// Check target path
 	full_path_size = MAX_PATH;
@@ -123,6 +181,16 @@ static HRESULT download(BSTR callback_id, BSTR args)
 		goto out;
 	}
 
+	if (!HttpQueryInfo(file, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER, &content_length, &content_length_len, &index)) {
+		file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, CONNECTION_ERR);
+		goto out;
+	}
+
+	if (conn_is_aborted(conn_id)) {
+		file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, FT_ABORT_ERR);
+		goto out;
+	}
+
 	// Create local file
 	local_file = CreateFile(full_path, GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (local_file == INVALID_HANDLE_VALUE) {
@@ -136,6 +204,15 @@ static HRESULT download(BSTR callback_id, BSTR args)
 	while (InternetReadFile(file, buf, CHUNK_SIZE, &read)) {
 		DWORD written;
 
+		if (conn_is_aborted(conn_id)) {
+			InternetCloseHandle(file);
+			file = NULL;
+			CloseHandle(local_file);
+			local_file = INVALID_HANDLE_VALUE;
+			DeleteFile(full_path);
+			file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, FT_ABORT_ERR);
+			goto out;
+		}
 		if (read == 0)
 			break;
 
@@ -143,6 +220,8 @@ static HRESULT download(BSTR callback_id, BSTR args)
 			file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, FILE_NOT_FOUND_ERR);
 			goto out;
 		}
+		read_total += read;
+		file_transfer_progress_callback(callback_id, read_total, content_length);
 	}
 	if (GetLastError() != ERROR_SUCCESS) {
 		file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, CONNECTION_ERR);
@@ -222,6 +301,7 @@ static HRESULT upload(BSTR callback_id, BSTR args)
 	wchar_t user_name[INTERNET_MAX_USER_NAME_LENGTH + 1];
 	wchar_t passwd[INTERNET_MAX_PASSWORD_LENGTH + 1];
 	BOOL is_dir;
+	INT conn_id = -1;
 	HINTERNET inet = NULL;
 	HINTERNET server = NULL;
 	HINTERNET req = NULL;
@@ -230,6 +310,7 @@ static HRESULT upload(BSTR callback_id, BSTR args)
 	char *utf8_text = NULL;
 	int utf8_len;
 	DWORD written;
+	INT64 written_total = 0;
 	HANDLE file = INVALID_HANDLE_VALUE;
 	const char *end_contents = "\r\n--" BOUNDARY "--\r\n";
 	ULARGE_INTEGER file_size;
@@ -248,6 +329,9 @@ static HRESULT upload(BSTR callback_id, BSTR args)
 											JSON_VALUE_OBJECT | JSON_VALUE_NULL,// 5- params (key/value pairs)
 											JSON_VALUE_BOOL | JSON_VALUE_NULL,	// 6- trust all hosts
 											JSON_VALUE_BOOL | JSON_VALUE_NULL,	// 7- chunkedMode
+											JSON_VALUE_OBJECT | JSON_VALUE_NULL,// 8- headers (key/value pairs)
+											JSON_VALUE_INT | JSON_VALUE_NULL,	// 9- connection id
+											JSON_VALUE_STRING | JSON_VALUE_NULL,// 10- HTTP method
 											JSON_VALUE_INVALID)) {
 		res = E_FAIL;
 		goto out;
@@ -258,6 +342,10 @@ static HRESULT upload(BSTR callback_id, BSTR args)
 	src_uri = json_get_string_value(item);
 	item = json_array_get_next(item);
 	dst_uri = json_get_string_value(item);
+	item = json_array_item_at(array, 9);
+	if (json_get_value_type(item) != JSON_VALUE_NULL) {
+		conn_id = json_get_int_value(item);
+	}
 
 	// Check source path
 	size = MAX_PATH;
@@ -386,6 +474,11 @@ static HRESULT upload(BSTR callback_id, BSTR args)
 		goto end_req;
 	}
 
+	if (conn_is_aborted(conn_id)) {
+		file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, FT_ABORT_ERR);
+		goto end_req;
+	}
+
 	if (!HttpSendRequestEx(req, NULL, NULL, 0, context)) {
 			file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, CONNECTION_ERR);
 			goto end_req;
@@ -398,6 +491,11 @@ static HRESULT upload(BSTR callback_id, BSTR args)
 
 	// 2.2 Contents data
 	do {
+		if (conn_is_aborted(conn_id)) {
+			file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, FT_ABORT_ERR);
+			goto out;
+		}
+
 		if (!ReadFile(file, buf, CHUNK_SIZE, &size, NULL)) {
 			file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, CONNECTION_ERR);
 			goto out;
@@ -410,6 +508,9 @@ static HRESULT upload(BSTR callback_id, BSTR args)
 			file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, CONNECTION_ERR);
 			goto end_req;
 		}
+		written_total += written;
+
+		file_transfer_progress_callback(callback_id, written_total, file_size.QuadPart);
 	} while (TRUE);
 
 	// 2.3 Contents footer
@@ -479,6 +580,8 @@ HRESULT file_transfer_exec(BSTR callback_id, BSTR action, BSTR args, VARIANT *re
 			return download(callback_id, args);
 	if (!wcscmp(action, L"upload"))
 			return upload(callback_id, args);
+	if (!wcscmp(action, L"abort"))
+			return ft_abort(callback_id, args);
 
 	return DISP_E_MEMBERNOTFOUND;
 }
