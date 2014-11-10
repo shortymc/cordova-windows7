@@ -46,3 +46,4 @@ void text_buf_free(TextBuf buf);
 
 void set_thread_name (DWORD thread_id, char* thread_name);
 
+void console_log(wchar_t *level, wchar_t *msg);
