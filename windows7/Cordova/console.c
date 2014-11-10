@@ -25,27 +25,7 @@
 static HANDLE console_stdout;
 static BOOL console_is_open = FALSE;
 
-static HRESULT console_log_level(BSTR callback_id, BSTR args)
-{
-	HRESULT res = S_OK;
-	JsonArray array;
-	JsonItem item;
-	wchar_t *level;
-	wchar_t *msg;
-
-	// Validate array contents
-	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,
-											JSON_VALUE_STRING,
-											JSON_VALUE_INVALID)) {
-		res = E_FAIL;
-		goto out;
-	}
-
-	item = json_array_get_first(array);
-	level = json_get_string_value(item);
-	item = json_array_get_next(item);
-	msg = json_get_string_value(item);
-
+void console_log(wchar_t *level, wchar_t *msg) {
 	if (!console_is_open) {
 		console_is_open = TRUE;
 #ifdef CORDOVA_CONSOLE_OPEN_NEW_WINDOW
@@ -67,6 +47,30 @@ static HRESULT console_log_level(BSTR callback_id, BSTR args)
 	}
 	WriteConsole(console_stdout, msg, wcslen(msg), NULL, NULL);
 	WriteConsole(console_stdout, L"\r\n", 2, NULL, NULL);
+}
+
+static HRESULT console_log_level(BSTR callback_id, BSTR args)
+{
+	HRESULT res = S_OK;
+	JsonArray array;
+	JsonItem item;
+	wchar_t *level;
+	wchar_t *msg;
+
+	// Validate array contents
+	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,
+											JSON_VALUE_STRING,
+											JSON_VALUE_INVALID)) {
+		res = E_FAIL;
+		goto out;
+	}
+
+	item = json_array_get_first(array);
+	level = json_get_string_value(item);
+	item = json_array_get_next(item);
+	msg = json_get_string_value(item);
+
+	console_log(level, msg);
 
 	free(level);
 	free(msg);
