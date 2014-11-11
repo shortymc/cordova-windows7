@@ -30,6 +30,9 @@
 #include "device.h"
 #include "json.h"
 
+
+#ifdef CORDOVA_FILE_ENABLED
+
 #pragma comment(lib, "shlwapi.lib")
 
 static DWORD full_path_size;
@@ -1279,3 +1282,5 @@ static void file_module_close(void)
 }
 
 DEFINE_CORDOVA_MODULE(File, L"File", file_module_exec, file_module_init, file_module_close)
+
+#endif

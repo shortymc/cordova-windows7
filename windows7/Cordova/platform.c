@@ -20,7 +20,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include "common.h"
 #include "platform.h"
+
+
+#ifdef CORDOVA_PLATFORM_ENABLED
 
 static BOOL event_on = TRUE;
 
@@ -47,3 +51,5 @@ static HRESULT platform_exec(BSTR callback_id, BSTR action, BSTR args, VARIANT *
 }
 
 DEFINE_CORDOVA_MODULE(Platform, L"Platform", platform_exec, NULL, NULL)
+
+#endif

@@ -35,17 +35,19 @@
 #include "shell.h"
 #include "common.h"
 #include "resource.h"
-#include "device.h"
-#include "accel.h"
-#include "capture.h"
-#include "network.h"
-#include "notification.h"
-#include "storage.h"
-#include "platform.h"
-#include "file.h"
-#include "filetransfer.h"
-#include "compass.h"
-#include "console.h"
+
+#if defined(CORDOVA_CAMERA_ENABLED) || defined(CORDOVA_CAPTURE_ENABLED)
+# include "capture.h"
+#endif
+#ifdef CORDOVA_ACCELEROMETER_ENABLED
+# include "accel.h"
+#endif
+#ifdef CORDOVA_PLATFORM_ENABLED
+# include "platform.h"
+#endif
+#ifdef CORDOVA_COMPASS_ENABLED
+# include "compass.h"
+#endif
 
 
 //-------------------------------------------------------------------------------------------------
@@ -96,7 +98,9 @@ const	wchar_t gate_name[]= L"CordovaExec";
 wchar_t full_path[_MAX_PATH];	// We record our initial current directory name in there
 
 HWND hWnd;			// Our main window handle
+#if defined(CORDOVA_CAMERA_ENABLED) || defined(CORDOVA_CAPTURE_ENABLED)
 extern HWND hCaptureWnd;	// Child window handle, when capturing video
+#endif
 
 BSTR javascript;	// Small utility object, used whenever invoking a js method
 
@@ -119,7 +123,7 @@ LRESULT CALLBACK BrowserWndProcWrapper(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 
 static CordovaModule *module_list = NULL;
 
-static void register_cordova_module(CordovaModule *module)
+void register_cordova_module(CordovaModule *module)
 {
 	CordovaModule *item = module_list;
 
@@ -136,43 +140,12 @@ static void register_cordova_module(CordovaModule *module)
 }
 
 
-static void close_cordova_module(CordovaModule *module)
+void close_cordova_module(CordovaModule *module)
 {
 	if (module->close != NULL)
 		module->close();
 }
 
-static void register_cordova_modules()
-{
-	register_cordova_module(CORDOVA_MODULE(Device));
-	register_cordova_module(CORDOVA_MODULE(Camera));
-	register_cordova_module(CORDOVA_MODULE(Capture));
-	register_cordova_module(CORDOVA_MODULE(Accelerometer));
-	register_cordova_module(CORDOVA_MODULE(Network));
-	register_cordova_module(CORDOVA_MODULE(Notification));
-	register_cordova_module(CORDOVA_MODULE(Storage));
-	register_cordova_module(CORDOVA_MODULE(Platform));
-	register_cordova_module(CORDOVA_MODULE(File));
-	register_cordova_module(CORDOVA_MODULE(FileTransfer));
-	register_cordova_module(CORDOVA_MODULE(Compass));
-	register_cordova_module(CORDOVA_MODULE(Console));
-}
-
-static void close_cordova_modules()
-{
-	close_cordova_module(CORDOVA_MODULE(Device));
-	close_cordova_module(CORDOVA_MODULE(Camera));
-	close_cordova_module(CORDOVA_MODULE(Capture));
-	close_cordova_module(CORDOVA_MODULE(Accelerometer));
-	close_cordova_module(CORDOVA_MODULE(Network));
-	close_cordova_module(CORDOVA_MODULE(Notification));
-	close_cordova_module(CORDOVA_MODULE(Storage));
-	close_cordova_module(CORDOVA_MODULE(Platform));
-	close_cordova_module(CORDOVA_MODULE(File));
-	close_cordova_module(CORDOVA_MODULE(FileTransfer));
-	close_cordova_module(CORDOVA_MODULE(Compass));
-	close_cordova_module(CORDOVA_MODULE(Console));
-}
 
 static CordovaModule *find_cordova_module(BSTR module_id)
 {
@@ -1092,6 +1065,7 @@ static void call_js_script(BSTR wcs_as_bstr)
 }
 
 
+#ifdef CORDOVA_PLATFORM_ENABLED
 void ProcessBackKeyStroke (void)
 {
 	// I there are listeners for back button down notifications
@@ -1100,6 +1074,8 @@ void ProcessBackKeyStroke (void)
 		call_js_script(SysAllocString(L"cordova.fireDocumentEvent('backbutton');"));
 	}
 }
+#endif
+
 
 LRESULT CALLBACK CordovaShellWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -1107,10 +1083,12 @@ LRESULT CALLBACK CordovaShellWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 
 	switch (uMsg)
 	{
+#ifdef CORDOVA_PLATFORM_ENABLED
 		case WM_KEYDOWN:
 			if (wParam == VK_BACK)
 				ProcessBackKeyStroke();
 			break;
+#endif
 
 		case WM_CLOSE:
 			current_state = STATE_ENDING;	// The window will get deactivated before being destroyed
@@ -1130,28 +1108,37 @@ LRESULT CALLBACK CordovaShellWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 				browser_web_if->lpVtbl->put_Height(browser_web_if, HIWORD(lParam));
 			}
 
+#if defined(CORDOVA_CAMERA_ENABLED) || defined(CORDOVA_CAPTURE_ENABLED)
 			if (hCaptureWnd)
 				SetWindowPos(hCaptureWnd, 0, 0, 0, LOWORD(lParam), HIWORD(lParam), SWP_NOMOVE | SWP_NOZORDER);
+#endif
 			return 0;
 
+#if defined(CORDOVA_CAMERA_ENABLED) || defined(CORDOVA_CAPTURE_ENABLED)
 		case WM_DISPLAYCHANGE:
 			camera_notify_display_change();
 			return 0;
+#endif
 
 		case WM_EXEC_JS_SCRIPT:
 			call_js_script((BSTR) lParam);
 			return 0;
 
+#ifdef CORDOVA_ACCELEROMETER_ENABLED
 		case WM_USER_ACCEL:
 			// New accelerometer sample available ; propagate to the JS side
 			propagate_accel_sample();
 			return 0;
+#endif
 
+#ifdef CORDOVA_COMPASS_ENABLED
 		case WM_USER_COMPASS:
 			// New compass sample available ; propagate to the JS side
 			propagate_compass_sample();
 			return 0;
+#endif
 
+#if defined(CORDOVA_CAMERA_ENABLED) || defined(CORDOVA_CAPTURE_ENABLED)
 		case WM_PARENTNOTIFY:
 			// The capture window got destroyed, time to let the JS side know the outcome of the last requested service
 			if (LOWORD(wParam) == WM_DESTROY && (HWND) lParam == hCaptureWnd)
@@ -1159,6 +1146,7 @@ LRESULT CALLBACK CordovaShellWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 				notify_capture_result();
 			}
 			break;
+#endif
 
 		case WM_ACTIVATE:
 			if (LOWORD(wParam))
@@ -1192,8 +1180,10 @@ LRESULT CALLBACK CordovaShellWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 
 LRESULT CALLBACK BrowserWndProcWrapper(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+#ifdef CORDOVA_PLATFORM_ENABLED
 	if (uMsg == WM_KEYDOWN && wParam == VK_BACK)
 		ProcessBackKeyStroke();
+#endif
 
 	return initial_browser_wnd_proc(hWnd, uMsg, wParam, lParam);
 }
@@ -1452,7 +1442,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	ShowWindow(hWnd, nCmdShow); 
 	UpdateWindow(hWnd);
 
+#if defined(CORDOVA_CAMERA_ENABLED) || defined(CORDOVA_CAPTURE_ENABLED)
 	setup_capture();
+#endif
 
 	while ((code = GetMessage( &msg, 0, 0, 0 )) != 0)
 	{

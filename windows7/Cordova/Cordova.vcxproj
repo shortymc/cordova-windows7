@@ -104,6 +104,7 @@
     <ClCompile Include="network.c" />
     <ClCompile Include="notification.c" />
     <ClCompile Include="platform.c" />
+    <ClCompile Include="plugin_list.c" />
     <ClCompile Include="shell.c" />
     <ClCompile Include="storage.c" />
   </ItemGroup>

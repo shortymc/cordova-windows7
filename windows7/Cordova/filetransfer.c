@@ -28,6 +28,9 @@
 #include "file.h"
 #include "json.h"
 
+
+#ifdef CORDOVA_FILETRANSFER_ENABLED
+
 #pragma comment(lib, "wininet.lib")
 
 
@@ -587,3 +590,5 @@ HRESULT file_transfer_exec(BSTR callback_id, BSTR action, BSTR args, VARIANT *re
 }
 
 DEFINE_CORDOVA_MODULE(FileTransfer, L"FileTransfer", file_transfer_exec, NULL, NULL)
+
+#endif

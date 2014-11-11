@@ -25,6 +25,9 @@
 #include <wchar.h>
 #include "common.h"
 
+
+#ifdef CORDOVA_COMPASS_ENABLED
+
 #pragma comment(lib, "sensorsapi.lib")
 #pragma comment(lib, "portabledeviceguids.lib")
 
@@ -275,3 +278,5 @@ DEFINE_CORDOVA_MODULE(Compass, L"Compass", compass_exec, NULL, NULL)
     timestamp: The time at which this heading was determined. (milliseconds)
 
 	*/
+
+#endif

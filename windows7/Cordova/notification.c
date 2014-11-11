@@ -25,6 +25,10 @@
 
 #include "notification.h"
 #include "json.h"
+#include "common.h"
+
+
+#ifdef CORDOVA_NOTIFICATION_ENABLED
 
 extern HWND	hWnd;
 
@@ -312,3 +316,5 @@ HRESULT notification_exec(BSTR callback_id, BSTR action, BSTR args, VARIANT *res
 }
 
 DEFINE_CORDOVA_MODULE(Notification, L"Notification", notification_exec, NULL, NULL)
+
+#endif

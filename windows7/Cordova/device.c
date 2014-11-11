@@ -23,14 +23,16 @@
 #include <wchar.h>
 #include <rpc.h>
 
-#pragma comment(lib,"rpcrt4.lib")
-
-// GetComputerName
 // GetVersionEx
 
 #include "shell.h"
 #include "device.h"
 #include "common.h"
+
+
+#ifdef CORDOVA_DEVICE_ENABLED
+
+#pragma comment(lib,"rpcrt4.lib")
 
 #define CORDOVA_MACHINE_ID		L"MachineID"
 #define CORDOVA_VERSION			L"2.9.1"
@@ -151,3 +153,5 @@ static void device_module_init(void)
 }
 
 DEFINE_CORDOVA_MODULE(Device, L"Device", device_exec, device_module_init, NULL)
+
+#endif

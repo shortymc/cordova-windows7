@@ -22,6 +22,9 @@
 #include "common.h"
 #include "json.h"
 
+
+#ifdef CORDOVA_CONSOLE_ENABLED
+
 static HANDLE console_stdout;
 static BOOL console_is_open = FALSE;
 
@@ -102,3 +105,5 @@ static void console_module_close(void)
 }
 
 DEFINE_CORDOVA_MODULE(Console, L"Console", console_module_exec, NULL, console_module_close)
+
+#endif

@@ -25,6 +25,9 @@
 #include <wchar.h>
 #include "common.h"
 
+
+#ifdef CORDOVA_ACCELEROMETER_ENABLED
+
 #pragma comment(lib, "sensorsapi.lib")
 #pragma comment(lib, "portabledeviceguids.lib")
 
@@ -249,3 +252,5 @@ HRESULT accel_exec(BSTR callback_id, BSTR action, BSTR args, VARIANT *result)
 }
 
 DEFINE_CORDOVA_MODULE(Accelerometer, L"Accelerometer", accel_exec, NULL, NULL)
+
+#endif

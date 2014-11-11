@@ -20,6 +20,25 @@
 #include <knownfolders.h>
 #include "configuration.h"
 
+// required cordova plugins for cordova to be functional (for now)
+#ifndef CORDOVA_DEVICE_ENABLED
+# define CORDOVA_DEVICE_ENABLED 1
+#endif
+#ifndef CORDOVA_NETWORKSTATUS_ENABLED
+# define CORDOVA_NETWORKSTATUS_ENABLED 1
+#endif
+#ifndef CORDOVA_STORAGE_ENABLED
+# define CORDOVA_STORAGE_ENABLED 1
+#endif
+
+// plugin dependencies
+#if defined(CORDOVA_FILETRANSFER_ENABLED) && !defined(CORDOVA_FILE_ENABLED)
+# define CORDOVA_FILE_ENABLED 1
+#endif
+#if defined(CORDOVA_FILE_ENABLED) && !defined(CORDOVA_DEVICE_ENABLED)
+# define CORDOVA_DEVICE_ENABLED 1
+#endif
+
 typedef enum {
 	WM_EXEC_JS_SCRIPT = WM_USER,
 	WM_USER_ACCEL,
@@ -46,4 +65,6 @@ void text_buf_free(TextBuf buf);
 
 void set_thread_name (DWORD thread_id, char* thread_name);
 
+#ifdef CORDOVA_CONSOLE_ENABLED
 void console_log(wchar_t *level, wchar_t *msg);
+#endif

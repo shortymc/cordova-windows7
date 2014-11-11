@@ -29,6 +29,11 @@
 #include "json.h"
 #include "common.h"
 
+
+#ifdef CORDOVA_STORAGE_ENABLED
+
+#pragma comment(lib, "shlwapi.lib")
+
 #define DROP_QUERY L"drop"
 #define ALTER_QUERY L"alter"
 #define CREATE_QUERY L"create"
@@ -389,3 +394,5 @@ void storage_close(void)
 }
 
 DEFINE_CORDOVA_MODULE(Storage, L"Storage", storage_exec, NULL, storage_close)
+
+#endif

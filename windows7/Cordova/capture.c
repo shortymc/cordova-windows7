@@ -36,6 +36,9 @@
 #include "common.h"
 #include "mp4patch.h"
 
+
+#if defined(CORDOVA_CAMERA_ENABLED) || defined(CORDOVA_CAPTURE_ENABLED)
+
 // Workaround for a declaration in the Windows 8 SDK that's mistakenly missing for non C++ files
 STDAPI MFCreateCollection(_Out_ IMFCollection **ppIMFCollection);
 
@@ -2332,3 +2335,4 @@ DEFINE_CORDOVA_MODULE(Capture, L"Capture", capture_exec, NULL, NULL)
 
 // @@@ feedback for key presses ?
 
+#endif

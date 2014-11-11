@@ -37,3 +37,18 @@
 // opens the console in a new window (otherwise it uses the default console which is only visible when started from command prompt)
 # define CORDOVA_CONSOLE_OPEN_NEW_WINDOW 1
 #endif
+
+
+// which plugins should be loaded?
+#define CORDOVA_DEVICE_ENABLED 1
+#define CORDOVA_CAMERA_ENABLED 1
+#define CORDOVA_CAPTURE_ENABLED 1
+#define CORDOVA_ACCELEROMETER_ENABLED 1
+#define CORDOVA_NETWORKSTATUS_ENABLED 1
+#define CORDOVA_NOTIFICATION_ENABLED 1
+#define CORDOVA_STORAGE_ENABLED 1
+#define CORDOVA_PLATFORM_ENABLED 1
+#define CORDOVA_FILE_ENABLED 1
+#define CORDOVA_FILETRANSFER_ENABLED 1
+#define CORDOVA_COMPASS_ENABLED 1
+#define CORDOVA_CONSOLE_ENABLED 1

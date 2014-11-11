@@ -58,4 +58,11 @@ typedef struct _CordovaModule CordovaModule;
 void cordova_success_callback(BSTR callback_id, BOOL keep_callback, const wchar_t *message);
 void cordova_fail_callback(BSTR callback_id, BOOL keep_callback, CallbackStatus status, const wchar_t *message);
 
+void register_cordova_modules();
+void close_cordova_modules();
+
+void register_cordova_module(CordovaModule *module);
+void close_cordova_module(CordovaModule *module);
+
+
 #endif

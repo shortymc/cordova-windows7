@@ -26,9 +26,13 @@
 #include <ws2ipdef.h>
 #include <iphlpapi.h>
 
-#pragma comment(lib, "IPHLPAPI.lib")
-
 #include "network.h"
+#include "common.h"
+
+
+#ifdef CORDOVA_NETWORKSTATUS_ENABLED
+
+#pragma comment(lib, "IPHLPAPI.lib")
 
 //-------------------------------------------------------------------------------------------------
 
@@ -106,3 +110,5 @@ HRESULT network_exec(BSTR callback_id, BSTR action, BSTR args, VARIANT *result)
 }
 
 DEFINE_CORDOVA_MODULE(Network, L"NetworkStatus", network_exec, NULL, NULL)
+
+#endif
