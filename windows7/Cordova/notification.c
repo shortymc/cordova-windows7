@@ -239,7 +239,7 @@ static HRESULT show_dialog(BSTR callback_id, BSTR args)
 	// Validate array contents
 	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,
 									JSON_VALUE_STRING,
-									JSON_VALUE_ARRAY,
+									JSON_VALUE_ARRAY | JSON_VALUE_STRING,
 									JSON_VALUE_INVALID)) {
 		json_free_args(array);
 		return -1;
@@ -255,12 +255,20 @@ static HRESULT show_dialog(BSTR callback_id, BSTR args)
 
 	// buttons
 	item = json_array_get_next(item);
-	button = json_get_array_value(item);
-	while (button != NULL) {
-		btn_text[num_buttons] = json_get_string_value(button);
+	if (json_get_value_type(item) == JSON_VALUE_STRING) {
+		// only one button for alert
+		btn_text[num_buttons] = json_get_string_value(item);
 		btn_text_len[num_buttons] = wcslen(btn_text[num_buttons]);
 		num_buttons++;
-		button = json_array_get_next(button);
+	} else {
+		// multiple buttons for confirm
+		button = json_get_array_value(item);
+		while (button != NULL) {
+			btn_text[num_buttons] = json_get_string_value(button);
+			btn_text_len[num_buttons] = wcslen(btn_text[num_buttons]);
+			num_buttons++;
+			button = json_array_get_next(button);
+		}
 	}
 
 	json_free_args(array);
