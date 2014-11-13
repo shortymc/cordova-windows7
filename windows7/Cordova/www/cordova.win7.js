@@ -858,81 +858,25 @@ define("cordova/exec", function(require, exports, module) {
 
 var cordova = require('cordova');
 
-function jsHandler_exec(successCallback, errorCallback, clazz, action, args) {
-    try {
-        var plugin = require('cordova/plugin/win7/' + clazz);
-
-        if (plugin && typeof plugin[action] === 'function') {
-            var result = plugin[action](successCallback, errorCallback, args);
-            return result || { status: cordova.callbackStatus.NO_RESULT };
-        }
-        // action not found
-        return { "status": cordova.callbackStatus.CLASS_NOT_FOUND_EXCEPTION, "message": "Function " + clazz + "::" + action + " cannot be found" };
-    } catch (e) {
-        // clazz not found
-        return { "status": cordova.callbackStatus.CLASS_NOT_FOUND_EXCEPTION, "message": "Function " + clazz + "::" + action + " cannot be found" };
-    }
-}
-
 module.exports = function exec(success, fail, service, action, args) {
-    try {
-        // Try JS implementation
-        var v = jsHandler_exec(success, fail, service, action, args);
+	var callbackId = service + cordova.callbackId++;
+	if (typeof success == 'function' || typeof fail == 'function') {
+		cordova.callbacks[callbackId] = { success: success, fail: fail };
+	}
 
-        // If status is OK, then return value back to caller
-        if (v.status == cordova.callbackStatus.OK) {
-
-            // If there is a success callback, then call it now with returned value
-            if (success) {
-                try {
-                    success(v.message);
-                }
-                catch (e) {
-                    console.log("Error in success callback: " + service + "." + action + " = " + e);
-                }
-
-            }
-            return v.message;
-        } else if (v.status == cordova.callbackStatus.NO_RESULT) {
-            // Nothing to do here
-        } else if (v.status == cordova.callbackStatus.CLASS_NOT_FOUND_EXCEPTION) {
-            // Try native implementation
-            var callbackId = service + cordova.callbackId++;
-            if (typeof success == 'function' || typeof fail == 'function') {
-                cordova.callbacks[callbackId] = { success: success, fail: fail };
-            }
-
-            try {
-                if (window.external) {
-                    return window.external.CordovaExec(callbackId, service, action, JSON.stringify(args));
-                }
-                else {
-                    console.log('window.external not available');
-                }
-            }
-            catch (e) {
-                console.log('Exception calling native with for ' + service + '/' + action + ' - exception = ' + e);
-                // Clear callback
-                delete cordova.callbacks[callbackId];
-            }
-        } else {
-            // If error, then display error
-            console.log("Error: " + service + "." + action + " Status=" + v.status + " Message=" + v.message);
-
-            // If there is a fail callback, then call it now with returned value
-            if (fail) {
-                try {
-                    fail(v.message);
-                }
-                catch (e) {
-                    console.log("Error in error callback: " + service + "." + action + " = " + e);
-                }
-            }
-            return null;
-        }
-    } catch (e) {
-        console.log('Exception calling native with for ' + service + '/' + action + ' - exception = ' + e);
-    }
+	try {
+		if (window.external) {
+			return window.external.CordovaExec(callbackId, service, action, JSON.stringify(args));
+		}
+		else {
+			console.log('window.external not available');
+		}
+	}
+	catch (e) {
+		console.log('Exception calling native with for ' + service + '/' + action + ' - exception = ' + e);
+		// Clear callback
+		delete cordova.callbacks[callbackId];
+	}
 };
 });
 
@@ -1061,6 +1005,7 @@ module.exports = {
         modulemapper.loadMatchingModules(/cordova.*\/symbols$/);
         modulemapper.clobbers('cordova/plugin/win7/console', 'console');
         modulemapper.clobbers('cordova/plugin/win7/SQLError', 'SQLError');
+        modulemapper.clobbers('cordova/plugin/win7/base64', 'FileTransferBase64');
         modulemapper.mapModules(window);
 
         // Inject a listener for the backbutton, and tell native to override the flag (true/false) when we have 1 or more, or 0, listeners
@@ -1921,7 +1866,7 @@ module.exports = DirectoryReader;
 
 });
 
-// file: lib/common/plugin/Entry.js
+// file: lib/win7/plugin/Entry.js
 define("cordova/plugin/Entry", function(require, exports, module) {
 
 var argscheck = require('cordova/argscheck'),
@@ -2071,8 +2016,7 @@ Entry.prototype.copyTo = function(parent, newName, successCallback, errorCallbac
  * Return a URL that can be used to identify this entry.
  */
 Entry.prototype.toURL = function() {
-    // fullPath attribute contains the full URL
-    return this.fullPath;
+    return this.fullPath.replace(/^(file:\/\/\/[A-Z])_/, '$1:');
 };
 
 /**
@@ -5918,6 +5862,61 @@ SQLError.CONSTRAINT_ERR = 6;
 SQLError.TIMEOUT_ERR = 7;
 
 module.exports = SQLError;
+});
+
+// file: lib/win7/plugin/win7/base64.js
+define("cordova/plugin/win7/base64", function(require, exports, module) {
+
+var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
+    INVALID_CHARACTER_ERR = (function () {
+        // fabricate a suitable error object
+        try { document.createElement('$'); }
+        catch (error) { return error; }
+    }());
+
+    // encoder
+    // [https://gist.github.com/999166] by [https://github.com/nignag]
+    window.btoa || (
+    window.btoa = function (input) {
+        for (
+            // initialize result and counter
+          var block, charCode, idx = 0, map = chars, output = '';
+            // if the next input index does not exist:
+            //   change the mapping table to "="
+            //   check if d has no fractional digits
+          input.charAt(idx | 0) || (map = '=', idx % 1) ;
+            // "8 - idx % 1 * 8" generates the sequence 2, 4, 6, 8
+          output += map.charAt(63 & block >> 8 - idx % 1 * 8)
+        ) {
+            charCode = input.charCodeAt(idx += 3 / 4);
+            if (charCode > 0xFF) throw INVALID_CHARACTER_ERR;
+            block = block << 8 | charCode;
+        }
+        return output;
+    });
+
+    // decoder
+    // [https://gist.github.com/1020396] by [https://github.com/atk]
+    window.atob || (
+    window.atob = function (input) {
+        input = input.replace(/=+$/, '');
+        if (input.length % 4 == 1) throw INVALID_CHARACTER_ERR;
+        for (
+            // initialize result and counters
+          var bc = 0, bs, buffer, idx = 0, output = '';
+            // get next character
+          buffer = input.charAt(idx++) ;
+            // character found in table? initialize bit storage and add its ascii value;
+          ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer,
+            // and if not first of each 4 characters,
+            // convert the first 8 bits to one ascii character
+            bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0
+        ) {
+            // try to find character in table (0-63, not found => -1)
+            buffer = chars.indexOf(buffer);
+        }
+        return output;
+    });
 });
 
 // file: lib/win7/plugin/win7/console.js
