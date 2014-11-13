@@ -1452,6 +1452,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	create_browser_object();
 
+#ifdef CORDOVA_SHOW_MAXIMIZED
+	nCmdShow = SW_SHOWMAXIMIZED;
+#endif
 	ShowWindow(hWnd, nCmdShow); 
 	UpdateWindow(hWnd);
 
