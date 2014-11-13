@@ -32,6 +32,15 @@
 
 #define CORDOVA_FILETRANSFER_USER_AGENT L"Cordova"
 
+// minimal IE version (use at least 9)
+#define CORDOVA_INTERNET_EXPLORER_MIN_VERSION 9
+#define CORDOVA_INTERNET_EXPLORER_MIN_VERSION_MSG_TEXT L"This program requires Internet Explorer 9 or newer."
+
+// which IE version do you want to try to use?
+//		NOTICE: Test your software with all IE versions you support (from minver to compatmode)!
+//		NOTICE: When you change this value, delete your .exe name entry at HKEY_CURRENT_USER\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION
+#define CORDOVA_INTERNET_EXPLORER_COMPATIBILITY_MODE 9
+
 
 #ifdef _DEBUG
 // opens the console in a new window (otherwise it uses the default console which is only visible when started from command prompt)

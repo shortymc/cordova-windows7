@@ -1370,14 +1370,23 @@ void early_init (void)
 	// We need at least Windows Seven
 	if (major < 6 || (major == 6 && minor < 1))
 	{
-		MessageBox(GetForegroundWindow(), L"This program requires Windows 7 or newer.", L"Missing Prerequisites", MB_OK);
+#ifndef CORDOVA_WINDOWS_MIN_VERSION_MSG_TITLE
+# define CORDOVA_WINDOWS_MIN_VERSION_MSG_TITLE L"Missing Prerequisites"
+#endif
+#ifndef CORDOVA_WINDOWS_MIN_VERSION_MSG_TEXT
+# define CORDOVA_WINDOWS_MIN_VERSION_MSG_TEXT L"This program requires Windows 7 or newer."
+#endif
+		MessageBox(GetForegroundWindow(), CORDOVA_WINDOWS_MIN_VERSION_MSG_TEXT, CORDOVA_WINDOWS_MIN_VERSION_MSG_TITLE, MB_OK);
 		ExitProcess(61);
 	}
 
 	// IE 9 or newer required
-	if (get_ie_version() < 9)
+	if (get_ie_version() < CORDOVA_INTERNET_EXPLORER_MIN_VERSION)
 	{
-		MessageBox(GetForegroundWindow(), L"This program requires Internet Explorer 9 or newer", L"Missing Prerequisites", MB_OK);
+#ifndef CORDOVA_INTERNET_EXPLORER_MIN_VERSION_MSG_TITLE
+# define CORDOVA_INTERNET_EXPLORER_MIN_VERSION_MSG_TITLE L"Missing Prerequisites"
+#endif
+		MessageBox(GetForegroundWindow(), CORDOVA_INTERNET_EXPLORER_MIN_VERSION_MSG_TEXT, CORDOVA_INTERNET_EXPLORER_MIN_VERSION_MSG_TITLE, MB_OK);
 		ExitProcess(90);
 	}
 
@@ -1391,8 +1400,12 @@ void early_init (void)
 	// IE GPU acceleration is disabled by default for apps hosting the HTML control
 	set_ie_feature(IE_GPU_REG_KEY, 1);
 
-	// Disable pre-IE9 emulation
+	// Set IE compatibility mode / Disable pre-IE9 emulation
+#if CORDOVA_INTERNET_EXPLORER_COMPATIBILITY_MODE < 10
 	set_ie_feature(IE_COMPAT_REG_KEY, 9999);
+#else
+	set_ie_feature(IE_COMPAT_REG_KEY, CORDOVA_INTERNET_EXPLORER_COMPATIBILITY_MODE * 1000 + 1);
+#endif
 
 	// We need both COM (sensor API, etc) and OLE (WebBrowser control) services
 	if (!SUCCEEDED(OleInitialize(0)))
