@@ -89,7 +89,8 @@ static void file_transfer_fail_callback(wchar_t *callback_id, wchar_t *src, wcha
 	free(error_text);
 }
 
-static void file_transfer_progress_callback(wchar_t *callback_id, INT64 loaded, INT64 total)
+#define file_transfer_progress_callback(callback_id, loaded, total) /* no progress callbacks for now - we're operating in synchronous mode! */
+/*static void file_transfer_progress_callback(wchar_t *callback_id, INT64 loaded, INT64 total)
 {
 	const wchar_t *format = L"{lengthComputable:%s,loaded:%I64d,total:%I64d}";
 	wchar_t *progress_text;
@@ -101,7 +102,7 @@ static void file_transfer_progress_callback(wchar_t *callback_id, INT64 loaded, 
 	cordova_success_callback(callback_id, TRUE, progress_text);
 
 	free(progress_text);
-}
+}*/
 
 static HRESULT download(BSTR callback_id, BSTR args)
 {
