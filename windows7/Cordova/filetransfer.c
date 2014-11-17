@@ -109,13 +109,19 @@ static HRESULT download(BSTR callback_id, BSTR args)
 	HRESULT res = S_OK;
 	JsonArray array;
 	JsonItem item;
+	JsonObjectItem headers;
 	CordovaFsError fs_err;
+	wchar_t *item_val;
+	wchar_t *headers_str = NULL;
 	wchar_t *src_uri = NULL;
 	wchar_t *dst_uri = NULL;
 	BOOL trust_all_hosts;
+	BOOL first_header = TRUE;
 	INT conn_id = -1;
 	HINTERNET inet = NULL;
 	HINTERNET file = NULL;
+	TextBuf headers_buf = NULL;
+	DWORD headers_len = 0;
 	DWORD context = (DWORD) callback_id;
 	DWORD read;
 	INT64 read_total = 0;
@@ -135,6 +141,7 @@ static HRESULT download(BSTR callback_id, BSTR args)
 											JSON_VALUE_STRING,					// 1- target path
 											JSON_VALUE_BOOL | JSON_VALUE_NULL,	// 2- trust all hosts
 											JSON_VALUE_INT | JSON_VALUE_NULL,	// 3- connection id
+											JSON_VALUE_OBJECT | JSON_VALUE_NULL,// 4- headers (key/value pairs)
 											JSON_VALUE_INVALID)) {
 		res = E_FAIL;
 		goto out;
@@ -153,6 +160,35 @@ static HRESULT download(BSTR callback_id, BSTR args)
 	if (json_get_value_type(item) != JSON_VALUE_NULL) {
 		conn_id = json_get_int_value(item);
 	}
+	item = json_array_get_next(item);
+	if (json_get_value_type(item) != JSON_VALUE_NULL) {
+		headers = json_get_object_value(item);
+		while (headers && json_get_value_type(to_item(headers)) != JSON_VALUE_EMPTY) {
+			wchar_t *tag;
+
+			tag = json_object_get_prop_id(headers);
+			item_val = json_get_string_value(to_item(headers));
+
+			if (first_header) {
+				first_header = FALSE;
+				headers_buf = text_buf_new();
+			} else
+				text_buf_append(headers_buf, L"\r\n");
+
+			text_buf_append(headers_buf, tag);
+			text_buf_append(headers_buf, L": ");
+			text_buf_append(headers_buf, item_val);
+
+			free(tag);
+			free(item_val);
+
+			headers = json_object_get_next(headers);
+		}
+		if (!first_header) {
+			headers_str = text_buf_get(headers_buf);
+			headers_len = text_buf_get_len(headers_buf);
+		}
+	}
 
 
 	// Check target path
@@ -170,7 +206,7 @@ static HRESULT download(BSTR callback_id, BSTR args)
 		goto out;
 	}
 
-	file = InternetOpenUrl(inet, src_uri, NULL, 0, 0, context);
+	file = InternetOpenUrl(inet, src_uri, headers_str, headers_len, 0, context);
 	if (!file) {
 		file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, INVALID_URL_ERR);
 		goto out;
@@ -251,6 +287,8 @@ out:
 		free(dst_uri);
 	if (buf)
 		free(buf);
+	if (headers_buf)
+		text_buf_free(headers_buf);
 
 	return res;
 }
