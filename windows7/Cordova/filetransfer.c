@@ -221,10 +221,7 @@ static HRESULT download(BSTR callback_id, BSTR args)
 		goto out;
 	}
 
-	if (!HttpQueryInfo(file, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER, &content_length, &content_length_len, &index)) {
-		file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, CONNECTION_ERR);
-		goto out;
-	}
+	HttpQueryInfo(file, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER, &content_length, &content_length_len, &index);
 
 	if (conn_is_aborted(conn_id)) {
 		file_transfer_fail_callback(callback_id, src_uri, dst_uri, 0, FT_ABORT_ERR);
