@@ -911,9 +911,9 @@ static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, BOOL
 	char *buf = NULL;
 	int utf16_len;
 	wchar_t *utf16_text = NULL;
+	TextBuf response;
 	DWORD read;
 	wchar_t *base64_prefix = L"data:text/plain;base64,";
-	size_t extra_len = is_base64?wcslen(base64_prefix):0;
 	
 	// Convert src uri to path
 	full_path_size = MAX_PATH;
@@ -956,18 +956,20 @@ static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, BOOL
 	}
 
 	utf16_len = MultiByteToWideChar(CP_UTF8, 0, buf, -1, NULL, 0); // First call to get length
-	utf16_text = (wchar_t *) malloc(sizeof(wchar_t) * (2 + utf16_len + extra_len));
-	utf16_text[1 + utf16_len + extra_len] = 0;
-	if (!MultiByteToWideChar(CP_UTF8, 0, buf, -1, utf16_text + 1 + extra_len, utf16_len)) {
+	utf16_text = (wchar_t *) malloc(sizeof(wchar_t) * utf16_len);
+	if (!MultiByteToWideChar(CP_UTF8, 0, buf, -1, utf16_text, utf16_len)) {
 		file_fail_callback(callback_id, ABORT_ERR);
 		goto out;
 	}
 
-	utf16_text[0] = L'\'';
+	response = text_buf_new();
+	text_buf_append(response, L"\"");
 	if (is_base64) 
-		memcpy(utf16_text + 1, base64_prefix, sizeof(wchar_t) * wcslen(base64_prefix));
-	utf16_text[utf16_len + extra_len] = L'\'';
-	cordova_success_callback(callback_id, FALSE, utf16_text);
+		text_buf_append(response, base64_prefix);
+	text_buf_append_with_json_escaping_len(response, utf16_text, utf16_len - 1);
+	text_buf_append(response, L"\"");
+	cordova_success_callback(callback_id, FALSE, text_buf_get(response));
+	text_buf_free(response);
 
 out:
 	if (buf)
