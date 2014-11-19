@@ -964,9 +964,12 @@ static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, BOOL
 
 	response = text_buf_new();
 	text_buf_append(response, L"\"");
-	if (is_base64) 
+	if (is_base64) {
 		text_buf_append(response, base64_prefix);
-	text_buf_append_with_json_escaping_len(response, utf16_text, utf16_len - 1);
+		// FIXME: convert utf16_text to base64 and append to buffer, and enable readAsDataURL at the bottom of this file
+	} else {
+		text_buf_append_with_json_escaping_len(response, utf16_text, utf16_len - 1);
+	}
 	text_buf_append(response, L"\"");
 	cordova_success_callback(callback_id, FALSE, text_buf_get(response));
 	text_buf_free(response);
@@ -1227,8 +1230,8 @@ static HRESULT file_module_exec(BSTR callback_id, BSTR action, BSTR args, VARIAN
 	// FileReader
 	if (!wcscmp(action, L"readAsText"))
 			return read_as_text(callback_id, args);
-	if (!wcscmp(action, L"readAsDataURL"))
-			return read_as_data_url(callback_id, args);
+//	if (!wcscmp(action, L"readAsDataURL"))
+//			return read_as_data_url(callback_id, args);
 	// FileWriter
 	if (!wcscmp(action, L"write"))
 			return write(callback_id, args);
