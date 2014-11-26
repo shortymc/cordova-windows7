@@ -5769,7 +5769,7 @@ module.exports = requestFileSystem;
 
 });
 
-// file: lib/common/plugin/resolveLocalFileSystemURI.js
+// file: lib/win7/plugin/resolveLocalFileSystemURI.js
 define("cordova/plugin/resolveLocalFileSystemURI", function(require, exports, module) {
 
 var argscheck = require('cordova/argscheck'),
@@ -5791,7 +5791,7 @@ module.exports = function(uri, successCallback, errorCallback) {
         errorCallback && errorCallback(new FileError(error));
     };
     // sanity check for 'not:valid:filename'
-    if(!uri || uri.split(":").length > 2) {
+    if(!uri || uri.replace(/^(file:\/\/\/[A-Z]):/, '$1_').split(":").length > 2) {
         setTimeout( function() {
             fail(FileError.ENCODING_ERR);
         },0);
