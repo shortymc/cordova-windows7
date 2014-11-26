@@ -283,7 +283,7 @@ var cordova = {
         try {
             cordova.callbackFromNative(callbackId, true, args.status, [args.message], args.keepCallback);
         } catch (e) {
-            console.log("Error in error callback: " + callbackId + " = "+e);
+            console.log("Error in success callback: " + callbackId + " = "+e);
         }
     },
 
@@ -859,24 +859,24 @@ define("cordova/exec", function(require, exports, module) {
 var cordova = require('cordova');
 
 module.exports = function exec(success, fail, service, action, args) {
-	var callbackId = service + cordova.callbackId++;
-	if (typeof success == 'function' || typeof fail == 'function') {
-		cordova.callbacks[callbackId] = { success: success, fail: fail };
-	}
+    var callbackId = service + cordova.callbackId++;
+    if (typeof success == 'function' || typeof fail == 'function') {
+        cordova.callbacks[callbackId] = { success: success, fail: fail };
+    }
 
-	try {
-		if (window.external) {
-			return window.external.CordovaExec(callbackId, service, action, JSON.stringify(args));
-		}
-		else {
-			console.log('window.external not available');
-		}
-	}
-	catch (e) {
-		console.log('Exception calling native with for ' + service + '/' + action + ' - exception = ' + e);
-		// Clear callback
-		delete cordova.callbacks[callbackId];
-	}
+    try {
+        if (window.external) {
+            return window.external.CordovaExec(callbackId, service, action, JSON.stringify(args));
+        }
+        else {
+            console.log('window.external not available');
+        }
+    }
+    catch (e) {
+        console.log('Exception calling native with for ' + service + '/' + action + ' - exception = ' + e);
+        // Clear callback
+        delete cordova.callbacks[callbackId];
+    }
 };
 });
 
@@ -1000,7 +1000,8 @@ module.exports = {
             channel = require("cordova/channel"),
             modulemapper = require('cordova/modulemapper'),
             device = require('cordova/plugin/device'),
-            storage = require('cordova/plugin/win7/storage');
+            WebSQL = require('cordova/plugin/win7/WebSql'),
+            WinStorage = require('cordova/plugin/win7/WinStorage');
 
         modulemapper.loadMatchingModules(/cordova.*\/symbols$/);
         modulemapper.clobbers('cordova/plugin/win7/console', 'console');
@@ -1022,18 +1023,19 @@ module.exports = {
 
         channel.onDestroy.subscribe(function () {
             // Remove session storage database
-            storage.removeDatabase(device.uuid);
+            window.removeDatabase(device.uuid);
         });
 
         if (typeof window.openDatabase == 'undefined') {
-            window.openDatabase = storage.openDatabase;
+            window.openDatabase = WebSQL.openDatabase;
+            window.removeDatabase = WebSQL.removeDatabase;
         }
 
         if (typeof window.localStorage == 'undefined' || window.localStorage === null) {
             Object.defineProperty(window, "localStorage", {
                 writable: false,
                 configurable: false,
-                value: new storage.WinStorage('CordovaLocalStorage')
+                value: new WinStorage('CordovaLocalStorage')
             });
         }
 
@@ -1042,7 +1044,7 @@ module.exports = {
                 Object.defineProperty(window, "sessionStorage", {
                     writable: false,
                     configurable: false,
-                    value: new storage.WinStorage(device.uuid) // uuid is actually unique for application
+                    value: new WinStorage(device.uuid) // uuid is actually unique for application
                 });
             }
         }, [channel.onCordovaInfoReady]);
@@ -5846,6 +5848,186 @@ modulemapper.clobbers('cordova/plugin/splashscreen', 'navigator.splashscreen');
 
 });
 
+// file: lib/win7/plugin/win7/Database.js
+define("cordova/plugin/win7/Database", function(require, exports, module) {
+
+var exec = require('cordova/exec'),
+    SqlTransaction = require('cordova/plugin/win7/SqlTransaction');
+
+var Database = function (name, version, displayName, estimatedSize, creationCallback) {
+    // // Database openDatabase(in DOMString name, in DOMString version, in DOMString displayName, in unsigned long estimatedSize, in optional DatabaseCallback creationCallback
+    // TODO: duplicate native error messages
+    if (!name) {
+        throw new Error('Database name can\'t be null or empty');
+    }
+    this.name = name;
+    this.version = version; // not supported
+    this.displayName = displayName; // not supported
+    this.estimatedSize = estimatedSize; // not supported
+
+    this.lastTransactionId = 0;
+    this.tasksQueue = [];
+    this.tasksRunned = false;
+
+    this.Log('new Database(); name = ' + name);
+
+    var that = this;
+
+    var creationCallbackAsyncWrapper = creationCallback ? function () {
+        setTimeout(creationCallback, 0);
+    } : null;
+
+    exec(creationCallbackAsyncWrapper, function (err) {
+        that.Log('Database.open() err = ' + JSON.stringify(err));
+    }, "WebSql", "open", [this.name]);
+};
+
+Database.prototype.Log = function (text) {
+    if(window.__webSqlDebugModeOn === true)
+        console.log('[Database] name: ' + this.name + ', tasksQueue.length: ' + this.tasksQueue.length + '. | ' + text);
+};
+
+Database.prototype.guid = (function () {
+    function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000)
+                   .toString(16)
+                   .substring(1);
+    }
+    return function () {
+        return s4() + '' + s4() + '' + s4() + '' + s4() + '' +
+               s4() + '' + s4() + '' + s4() + '' + s4();
+    };
+})();
+
+Database.prototype.transaction = function (cb, onError, onSuccess, preflight, postflight, readOnly, parentTransaction) {
+    //this.Log('transaction');
+
+    if (typeof cb !== "function") {
+        this.Log('transaction callback expected');
+        throw new Error("transaction callback expected");
+    }
+
+    if (!readOnly) {
+        readOnly = false;
+    }
+
+    var isRoot = (Boolean)(!parentTransaction);
+
+    var me = this;
+
+    this.transactionSuccess = function () {
+        if (onSuccess) {
+            onSuccess();
+        }            
+
+        me.runNext();
+    };
+
+    this.transactionError = function (tx, lastError) {
+        if (onError) {
+            onError(tx, lastError);
+        }
+
+        me.runNext();
+    };
+
+    this.runNext = function () {
+        if (me.tasksQueue.length > 0) {
+            var taskForRun = me.tasksQueue.shift();
+            taskForRun.task.apply(me, taskForRun.params);
+        } else {
+            me.tasksRunned = false;
+        }
+    };
+
+    this.pushTask = function (task) {
+        me.tasksQueue.push({
+            task: task,
+            params: []
+        });
+
+        if (!me.tasksRunned) {
+            me.tasksRunned = true;
+            me.runNext();
+        }
+    };
+
+    me.lastTransactionId = me.guid();
+    var tx = new SqlTransaction(me.transactionError, me.transactionSuccess, postflight, readOnly, me.lastTransactionId, isRoot);
+
+    var runTransaction = function() {
+        try {
+            var connectionSuccess = function(res) {
+                //me.Log('transaction.run.connectionSuccess, res.connectionId: ' + res.connectionId);
+                if (!res.connectionId) {
+                    throw new Error('Could not establish DB connection');
+                }
+
+                tx.connectionId = res.connectionId;
+
+                try {
+                    var executeTransaction = function() {
+                        //me.Log('transaction.run.connectionSuccess, executeTransaction');
+                        if (preflight) {
+                            preflight();
+                        }
+
+                        try {
+                            cb(tx);
+                        } catch (cbEx) {
+                            me.Log('transaction.run.connectionSuccess, executeTransaction callback error: ' + JSON.stringify(cbEx));
+                            me.transactionError(tx, cbEx);
+                        }                        
+                    };
+
+                    var internalError = function(tx, err) {
+                        me.Log('transaction.run.connectionSuccess, internalError: ' + JSON.stringify(err));
+                        me.transactionError(tx, err);
+                    };
+
+                    exec(executeTransaction, internalError, "WebSql", "executeSql", [tx.connectionId, 'SAVEPOINT trx' + tx.id, []]);
+                } catch (ex) {
+                    me.Log('transaction.run exception: ' + JSON.stringify(ex));
+                    throw ex;
+                }
+            };
+
+            if (!parentTransaction) {
+                //me.Log('transaction.run connect to dbName: ' + me.name);
+                exec(function (res) {
+                    //me.Log('transaction.run connect success: ' + JSON.stringify(res));
+                    connectionSuccess(res);
+                }, function(ex) {
+                    me.Log('transaction.run connect error: ' + JSON.stringify(ex));
+                }, "WebSql", "connect", [me.name]);
+            } else {
+                //me.Log('transaction.run using parent connectionId: ' + parentTransaction.connectionId);
+                connectionSuccess({ connectionId: parentTransaction.connectionId });
+            }
+        } catch (ex) {
+            me.Log('transaction.run DB connection error: ' + JSON.stringify(ex));
+            throw ex;
+        }
+    };
+
+    if (!isRoot) {
+        //me.Log('transaction pushing as nested');
+        parentTransaction.pushTransaction(tx, cb, onError, onSuccess, preflight, postflight, readOnly, parentTransaction);
+    } else {
+        //me.Log('transaction pushing as root');
+        this.pushTask(runTransaction);
+    }
+};
+
+Database.prototype.readTransaction = function (cb, onError, onSuccess, preflight, postflight, parentTransaction) {
+    //this.Log('readTransaction');
+    this.transaction(cb, onError, onSuccess, preflight, postflight, true, parentTransaction);
+};
+
+module.exports = Database;
+
+});
+
 // file: lib/win7/plugin/win7/SQLError.js
 define("cordova/plugin/win7/SQLError", function(require, exports, module) {
 
@@ -5862,6 +6044,445 @@ SQLError.CONSTRAINT_ERR = 6;
 SQLError.TIMEOUT_ERR = 7;
 
 module.exports = SQLError;
+});
+
+// file: lib/win7/plugin/win7/SqlTransaction.js
+define("cordova/plugin/win7/SqlTransaction", function(require, exports, module) {
+
+var exec = require('cordova/exec'),
+    WRITE_OPS_REGEX = /^\s*(?:create|drop|delete|insert|update)\s/i;
+
+// http://www.w3.org/TR/webdatabase/#sqltransaction
+var SqlTransaction = function (onError, onSuccess, postflight, readOnly, transactionId, isRoot) {
+    this.onError = onError;
+    this.onSuccess = onSuccess;
+    this.postflight = postflight;
+    this.readOnly = readOnly;
+    this.id = transactionId;
+    this.isRoot = isRoot;
+
+    this.statementsQueue = [];
+    this.transactionStarted = false;
+
+    this.errorOccured = false;
+    //this.Log('ctor');
+};
+
+SqlTransaction.prototype.Log = function (text) {
+    if(window.__webSqlDebugModeOn === true)
+        console.log('[SqlTransaction] id: ' + this.id + ', connectionId: ' + this.connectionId + ', errorOccured: ' + this.errorOccured + '; statementsQueue.length = ' + this.statementsQueue.length + '. | ' + text);
+};
+
+SqlTransaction.prototype.statementCompleted = function () {
+    //this.Log('statementCompleted');
+
+    var me = this;
+    if (this.errorOccured !== false) {
+        //me.Log('statementCompleted - error occured, going to ROLLBACK...');
+
+        exec(function() {
+            //me.Log('statementCompleted - error occured, ROLLBACK SUCCESS!');
+
+            exec(function () {
+                //me.Log('statementCompleted - error occured, ROLLBACK SUCCESS, going to DISCONNECT');
+                if (me.isRoot) {
+                    exec(function () {
+                        //me.Log('statementCompleted - error occured, ROLLBACK SUCCESS, DISCONNECTed successfully');
+                    }, function (err) {
+                        me.Log('statementCompleted - error occured, ROLLBACK SUCCESS, DISCONNECT error: ' + JSON.stringify(err));
+                    }, "WebSql", "disconnect", [me.connectionId]);
+                }
+
+                me.Log('statementCompleted - error occured, ROLLBACK SUCCESS, last error: ' + JSON.stringify(me.lastError));
+                if (me.onError)
+                    me.onError(me, me.lastError);
+            }, function (err) {
+                me.Log('statementCompleted - error occured, ROLLBACK SUCCESS, RELEASE after rollback error: ' + JSON.stringify(err));
+                if (me.onError)
+                    me.onError(me, err);
+            }, "WebSql", "executeSql", [me.connectionId, 'RELEASE trx' + me.id, []]);
+
+        }, function(err) {
+            me.Log('statementCompleted - error occured, ROLLBACK error: ' + JSON.stringify(err));
+        }, "WebSql", "executeSql", [this.connectionId, 'ROLLBACK TO trx' + this.id, []]);
+
+    } else if (this.statementsQueue.length === 0) {
+        //me.Log('statementCompleted - statementsQueue is empty, transactionStarted: ' + me.transactionStarted);
+
+        exec(function () {
+            if (me.postflight) {
+                me.postflight();
+            }
+
+            if (me.isRoot) {
+                //me.Log('statementCompleted - statementsQueue is empty, going to DISCONNECT after COMMIT');
+                exec(function () {
+                    //me.Log('statementCompleted - statementsQueue is empty, DISCONNECT after COMMIT success');
+                    if (me.onSuccess) {
+                        me.onSuccess();
+                    }
+                }, function (err) {
+                    me.Log('statementCompleted - statementsQueue is empty, DISCONNECT after COMMIT error: ' + JSON.stringify(err));
+                    if (me.onError)
+                        me.onError(me, me.lastError);
+                }, "WebSql", "disconnect", [me.connectionId]);
+            } else {
+                if (me.onSuccess) {
+                    me.onSuccess();
+                }
+            }
+
+        }, this.onError, "WebSql", "executeSql", [this.connectionId, 'RELEASE trx' + this.id, []]);
+    }
+    else {
+        var taskForRun = this.statementsQueue.shift();
+        //me.Log('statementCompleted - executing next query: ' + JSON.stringify(taskForRun));
+
+        try {
+            taskForRun.task.apply(this, taskForRun.params);
+        } catch (e) {
+            me.Log('statementCompleted - next query exception: ' + JSON.stringify(e));
+            if (this.onError) {
+                this.errorOccured = this.onError(me, e);
+            } else {
+                this.errorOccured = true;
+            }
+
+            this.statementCompleted();
+        }
+    }
+};
+
+SqlTransaction.prototype.pushTransaction = function(tx, cb, onError, onSuccess, preflight, postflight, readOnly, parentTransaction) {
+    //if (!!parentTransaction) {
+    //    this.Log('pushTransaction: parentTransaction.id: ' + parentTransaction.id + ', parentTransaction.connectionId: ' + parentTransaction.connectionId + ', new tx.id: ' + tx.id);
+    //} else {
+    //    this.Log('pushTransaction: parentTransaction is not defined');
+    //}
+
+    var me = this;
+
+    this.transactionSuccess = function () {
+        if (onSuccess)
+            onSuccess();
+
+        me.statementCompleted();
+    };
+
+    this.transactionError = function (tx, lastError) {
+        if (onError)
+            onError(tx, lastError);
+
+        me.statementCompleted();
+    };
+
+    tx.onSuccess = this.transactionSuccess;
+    tx.onError = this.transactionError;
+    
+    var runTransaction = function () {
+        try {
+            var connectionSuccess = function (res) {
+                //me.Log('pushTransaction.connectionSuccess, res.connectionId: ' + res.connectionId);
+                if (!res.connectionId) {
+                    throw new Error('Could not establish DB connection');
+                }
+
+                tx.connectionId = res.connectionId;
+
+                try {
+                    var executeTransaction = function () {
+                        //me.Log('pushTransaction.executeTransaction callback');
+                        if (preflight) {
+                            preflight();
+                        }
+
+                        try {
+                            cb(tx);
+                        } catch (cbEx) {
+                            me.Log('pushTransaction.executeTransaction callback error: ' + JSON.stringify(cbEx));
+                            me.transactionError(tx, cbEx);
+                        }
+                    };
+
+                    var internalError = function (tx, err) {
+                        me.Log('pushTransaction.executeTransaction internalError: ' + JSON.stringify(err));
+                        me.transactionError(tx, err);
+                    };
+
+                    exec(executeTransaction, internalError, "WebSql", "executeSql", [tx.connectionId, 'SAVEPOINT trx' + tx.id, []]);
+                } catch (ex) {
+                    me.Log('pushTransaction.executeTransaction error: ' + JSON.stringify(ex));
+                    throw ex;
+                }
+            };
+
+            connectionSuccess({ connectionId: parentTransaction.connectionId });
+        } catch (ex) {
+            me.Log('pushTransaction.executeTransaction DB connection error: ' + JSON.stringify(ex));
+            throw ex;
+        }
+    };
+
+    this.statementsQueue.push({
+        task: runTransaction,
+        params: []
+    });
+
+    //this.Log('pushTransaction, transactionStarted: ' + this.transactionStarted + ', statementsQueue.length: ' + this.statementsQueue.length);
+
+    if (this.transactionStarted === false && this.statementsQueue.length === 1) {
+        this.transactionStarted = true;
+        var taskForRun = this.statementsQueue.shift();
+        taskForRun.task.apply(this, taskForRun.params);
+    }
+};
+
+SqlTransaction.prototype.executeSql = function(sql, params, onSuccess, onError) {
+    //this.Log('executeSql, sql: ' + sql);
+    // BUG: We can loose a statement here if DB processing works faster than next executeSql call - in this case transaction will be finalized
+    this.statementsQueue.push({
+        task: this.executeSqlInternal,
+        params: [sql, params, onSuccess, onError]
+    });
+
+    if (this.transactionStarted === false && this.statementsQueue.length === 1) {       
+        this.transactionStarted = true;
+        var taskForRun = this.statementsQueue.shift();
+        //this.Log('executeSql, running task');
+        try {
+            taskForRun.task.apply(this, taskForRun.params);
+        } catch (e) {
+            this.Log('executeSql - next query exception: ' + JSON.stringify(e));
+            if (onError) {
+                this.errorOccured = onError(this, e);
+            } else {
+                this.errorOccured = true;
+            }
+
+            this.statementCompleted();
+        }        
+    }
+};
+
+SqlTransaction.prototype.executeSqlInternal = function(sql, params, onSuccess, onError) {
+    //this.Log('executeSqlInternal');
+
+    if (!sql) {
+        this.Log('executeSqlInternal, ERROR: sql query can\'t be null or empty');
+        throw new Error('sql query can\'t be null or empty');
+    }
+
+    if (typeof (this.connectionId) == 'undefined' || this.connectionId <= 0) {
+        this.Log('executeSqlInternal, ERROR: Connection is not set');
+        throw new Error('Connection is not set');
+    }
+
+    if (this.readOnly && WRITE_OPS_REGEX.test(sql)) {
+        this.Log('executeSqlInternal, ERROR: Read-only transaction can\'t include write operations');
+        throw new Error('Read-only transaction can\'t include write operations');
+    }
+
+    var me = this;
+    var rollbackRequired = false;
+    var lastError;
+
+    this.sql = sql;
+    this.params = params || [];
+
+    this.successCallback = function (res) {
+        //me.Log('executeSqlInternal, successCallback, res: ' + JSON.stringify(res));
+        // add missing .item() method as per http://www.w3.org/TR/webdatabase/#sqlresultset
+        res.rows.item = function(index) {
+            if (index < 0 || index >= res.rows.length) {
+                return null;
+            }
+            return res.rows[index];
+        };
+
+        if (onSuccess) {
+            try {
+                onSuccess(me, res);
+            } catch (e) {
+                me.Log('executeSqlInternal, successCallback, onSuccess exception: ' + JSON.stringify(e));
+
+                if (onError) {
+                    rollbackRequired = onError(me, e);
+                } else {
+                    rollbackRequired = true;
+                }
+
+                me.errorOccured = rollbackRequired;
+                me.lastError = e;
+            }
+        }
+
+        //me.Log('executeSqlInternal, successCallback FINISH');
+        me.statementCompleted();
+    };
+
+    this.errorCallback = function (error) {
+        //me.Log('executeSqlInternal, errorCallback');
+        if (onError) {
+            try {
+                rollbackRequired = onError(me, error);
+            } catch (e) {
+                me.Log('executeSqlInternal, errorCallback exception: ' + JSON.stringify(e));
+                rollbackRequired = true;
+            }            
+        } else {
+            rollbackRequired = true;
+        }
+        me.lastError = error;
+        me.errorOccured = rollbackRequired;
+
+        //me.Log('executeSqlInternal, errorCallback FINISH');
+        me.statementCompleted();
+    };
+
+    function internalSuccess(res) {
+        try {
+            //me.Log('executeSqlInternal, internalSuccess');
+            me.successCallback(res);
+        } catch (e) {
+            me.Log('executeSqlInternal, internalSuccess callback exception: ' + JSON.stringify(e));
+            throw e;
+        }
+    }
+
+    function internalError(err) {
+        try {
+            me.Log('executeSqlInternal, internalError: ' + JSON.stringify(err));
+            me.errorCallback(err);
+        } catch (e) {
+            me.Log('executeSqlInternal, internalError callback exception: ' + JSON.stringify(e));
+            throw e;
+        }
+    }
+
+    try {
+        //me.Log('executeSqlInternal, going to executeSql: ' + me.sql);
+        exec(internalSuccess, internalError, "WebSql", "executeSql", [this.connectionId, this.sql, this.params]);
+    } catch (ex) {
+        me.Log('executeSqlInternal, executeSql error: ' + JSON.stringify(ex));
+        me.errorCallback(ex);
+    }
+};
+
+module.exports = SqlTransaction;
+
+});
+
+// file: lib/win7/plugin/win7/WebSql.js
+define("cordova/plugin/win7/WebSql", function(require, exports, module) {
+
+var exec = require('cordova/exec'),
+    Database = require('cordova/plugin/win7/Database');
+
+// http://www.w3.org/TR/webdatabase/
+var WebSQL = {};
+
+// Database openDatabase(in DOMString name, in DOMString version, in DOMString displayName, in unsigned long estimatedSize, in optional DatabaseCallback creationCallback
+// http://www.w3.org/TR/webdatabase/#databases
+WebSQL.openDatabase = window.openDatabase || function (name, version, displayName, estimatedSize, creationCallback) {
+    if(window.__webSqlDebugModeOn === true)
+        console.log('openDatabase: name = ' + name);
+    return new Database(name, version, displayName, estimatedSize, creationCallback);
+};
+
+WebSQL.removeDatabase = function (name) {
+    exec(null, null, "WebSql", "removeDatabase", [name]);
+};
+
+module.exports = WebSQL;
+
+});
+
+// file: lib/win7/plugin/win7/WinStorage.js
+define("cordova/plugin/win7/WinStorage", function(require, exports, module) {
+
+var channel = require("cordova/channel"),
+    utils = require('cordova/utils'),
+    exec = require('cordova/exec'),
+    WebSQL = require('cordova/plugin/win7/WebSql');
+
+var WinStorage = function (dbName) {
+    channel.waitForInitialization("winStorage" + dbName);
+
+    try {
+
+        this.db = openDatabase(dbName, '1.0', dbName, 2621440);
+        var storage = {}, self = this;
+        this.length = 0;
+        this.db.transaction(
+            function (transaction) {
+                var i;
+                transaction.executeSql('PRAGMA encoding = "UTF-8"');
+                transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id VARCHAR(40) PRIMARY KEY, body VARCHAR(255))');
+                transaction.executeSql('SELECT * FROM storage', [], function (tx, result) {
+                    for (var i = 0; i < result.rows.length; i++) {
+                        storage[result.rows.item(i).id] = result.rows.item(i).body;
+                    }
+                    self.length = result.rows.length;
+                    channel.initializationComplete("winStorage" + dbName);
+                });
+
+            },
+            function (err) {
+                utils.alert(err.message);
+            }
+        );
+        this.setItem = function (key, val) {
+            if (typeof (storage[key]) == 'undefined') {
+                this.length++;
+            }
+            storage[key] = val;
+            this.db.transaction(
+          function (transaction) {
+              transaction.executeSql('REPLACE INTO storage (id, body) values(?,?)', [key, val]);
+          }
+        );
+        };
+        this.getItem = function (key) {
+            return (typeof (storage[key]) == 'undefined') ? null : storage[key];
+        };
+        this.removeItem = function (key) {
+            delete storage[key];
+            this.length--;
+            this.db.transaction(
+          function (transaction) {
+              transaction.executeSql('DELETE FROM storage where id=?', [key]);
+          }
+        );
+        };
+        this.clear = function () {
+            storage = {};
+            this.length = 0;
+            this.db.transaction(
+          function (transaction) {
+              transaction.executeSql('DELETE FROM storage', []);
+          }
+        );
+        };
+        this.key = function (index) {
+            var i = 0;
+            for (var j in storage) {
+                if (i == index) {
+                    return j;
+                } else {
+                    i++;
+                }
+            }
+            return null;
+        };
+
+    } catch (e) {
+        utils.alert("Database error " + e + ".");
+        return;
+    }
+};
+
+module.exports = WinStorage;
+
 });
 
 // file: lib/win7/plugin/win7/base64.js
@@ -5954,297 +6575,6 @@ var console = {
 };
 
 module.exports = console;
-});
-
-// file: lib/win7/plugin/win7/storage.js
-define("cordova/plugin/win7/storage", function(require, exports, module) {
-
-var channel = require("cordova/channel"),
-    utils = require('cordova/utils'),
-    exec = require('cordova/exec');
-
-var Rows = function () {
-    this.resultSet = [];    // results array
-    this.length = 0;        // number of rows
-};
-
-Rows.prototype.item = function (row) {
-    return this.resultSet[row];
-};
-
-var Result = function () {
-    this.rows = new Rows();
-};
-
-var Query = function (tx) {
-
-    // Set the id of the query
-    this.id = utils.createUUID();
-
-    // Init result
-    this.resultSet = [];
-
-    // Set transaction that this query belongs to
-    this.tx = tx;
-
-    // Add this query to transaction list
-    this.tx.queryList[this.id] = this;
-
-    // Callbacks
-    this.successCallback = null;
-    this.errorCallback = null;
-
-};
-
-Query.prototype.complete = function(data) {
-    var id = this.id;
-    try {
-        // Get transaction
-        var tx = this.tx;
-
-        // If transaction hasn't failed
-        // Note: We ignore all query results if previous query
-        //       in the same transaction failed.
-        if (tx && tx.queryList[id]) {
-
-            // Save query results
-            var r = new Result();
-            r.rows.resultSet = data;
-            r.rows.length = data.length;
-            try {
-                if (typeof this.successCallback === 'function') {
-                    this.successCallback(tx, r);
-                }
-            } catch (ex) {
-                console.log("executeSql error calling user success callback: " + ex);
-            }
-
-            tx.queryComplete(id);
-        }
-    } catch (e) {
-        console.log("executeSql error: " + e);
-    }
-};
-
-Query.prototype.fail = function(error) {
-    var id = this.id;
-    try {
-        // Get transaction
-        var tx = this.tx;
-
-        // If transaction hasn't failed
-        // Note: We ignore all query results if previous query
-        //       in the same transaction failed.
-        if (tx && tx.queryList[id]) {
-            tx.queryList = {};
-
-            try {
-                if (typeof this.errorCallback === 'function') {
-                    this.errorCallback(tx, error);
-                }
-            } catch (ex) {
-                console.log("executeSql error calling user error callback: " + ex);
-            }
-
-            tx.queryFailed(id, error);
-        }
-
-    } catch (e) {
-        console.log("executeSql error: " + e);
-    }
-};
-
-var Transaction = function (database) {
-    this.db = database;
-    // Set the id of the transaction
-    this.id = utils.createUUID();
-
-    // Callbacks
-    this.successCallback = null;
-    this.errorCallback = null;
-
-    // Query list
-    this.queryList = {};
-};
-
-Transaction.prototype.queryComplete = function (id) {
-    delete this.queryList[id];
-
-    // If no more outstanding queries, then fire transaction success
-    if (this.successCallback) {
-        var count = 0;
-        var i;
-        for (i in this.queryList) {
-            if (this.queryList.hasOwnProperty(i)) {
-                count++;
-            }
-        }
-        if (count === 0) {
-            try {
-                this.successCallback();
-            } catch (e) {
-                console.log("Transaction error calling user success callback: " + e);
-            }
-        }
-    }
-};
-
-Transaction.prototype.queryFailed = function (id, error) {
-
-    // The sql queries in this transaction have already been run, since
-    // we really don't have a real transaction implemented in native code.
-    // However, the user callbacks for the remaining sql queries in transaction
-    // will not be called.
-    this.queryList = {};
-
-    if (this.errorCallback) {
-        try {
-            this.errorCallback(error);
-        } catch (e) {
-            console.log("Transaction error calling user error callback: " + e);
-        }
-    }
-};
-
-Transaction.prototype.executeSql = function (sql, params, successCallback, errorCallback) {
-    // Init params array
-    if (typeof params === 'undefined') {
-        params = [];
-    }
-
-    // Create query and add to queue
-    var query = new Query(this);
-
-    // Save callbacks
-    query.successCallback = successCallback;
-    query.errorCallback = errorCallback;
-
-    // Call native code
-    exec(function(data) {
-            query.complete(data);
-        },
-        function(error) {
-            query.fail(error);
-        },
-        "Storage",
-        "executeSql",
-        [this.db.id, sql, params, query.id]
-    );
-};
-
-var Database = function (dbId) {
-    this.id = dbId;
-};
-
-Database.prototype.transaction = function (process, errorCallback, successCallback) {
-    var tx = new Transaction(this);
-    tx.successCallback = successCallback;
-    tx.errorCallback = errorCallback;
-
-    try {
-        process(tx);
-    } catch (e) {
-        console.log("Transaction error: " + e);
-        if (tx.errorCallback) {
-            try {
-                tx.errorCallback(e);
-            } catch (ex) {
-                console.log("Transaction error calling user error callback: " + e);
-            }
-        }
-    }
-};
-
-var WinStorage = function (dbName) {
-    channel.waitForInitialization("winStorage" + dbName);
-
-    try {
-
-        this.db = openDatabase(dbName, '1.0', dbName, 2621440);
-        var storage = {}, self = this;
-        this.length = 0;
-        this.db.transaction(
-            function (transaction) {
-                var i;
-                transaction.executeSql('PRAGMA encoding = "UTF-8"');
-                transaction.executeSql('CREATE TABLE IF NOT EXISTS storage (id VARCHAR(40) PRIMARY KEY, body VARCHAR(255))');
-                transaction.executeSql('SELECT * FROM storage', [], function (tx, result) {
-                    for (var i = 0; i < result.rows.length; i++) {
-                        storage[result.rows.item(i).id] = result.rows.item(i).body;
-                    }
-                    self.length = result.rows.length;
-                    channel.initializationComplete("winStorage" + dbName);
-                });
-
-            },
-            function (err) {
-                utils.alert(err.message);
-            }
-        );
-        this.setItem = function (key, val) {
-            if (typeof (storage[key]) == 'undefined') {
-                this.length++;
-            }
-            storage[key] = val;
-            this.db.transaction(
-          function (transaction) {
-              transaction.executeSql('REPLACE INTO storage (id, body) values(?,?)', [key, val]);
-          }
-        );
-        };
-        this.getItem = function (key) {
-            return (typeof (storage[key]) == 'undefined') ? null : storage[key];
-        };
-        this.removeItem = function (key) {
-            delete storage[key];
-            this.length--;
-            this.db.transaction(
-          function (transaction) {
-              transaction.executeSql('DELETE FROM storage where id=?', [key]);
-          }
-        );
-        };
-        this.clear = function () {
-            storage = {};
-            this.length = 0;
-            this.db.transaction(
-          function (transaction) {
-              transaction.executeSql('DELETE FROM storage', []);
-          }
-        );
-        };
-        this.key = function (index) {
-            var i = 0;
-            for (var j in storage) {
-                if (i == index) {
-                    return j;
-                } else {
-                    i++;
-                }
-            }
-            return null;
-        };
-
-    } catch (e) {
-        utils.alert("Database error " + e + ".");
-        return;
-    }
-};
-
-function openDatabase(name, version, display_name, size) {
-    var dbId = exec(null, null, "Storage", "openDatabase", [name, version, display_name, size]);
-    return new Database(dbId);
-}
-
-function removeDatabase(name) {
-    exec(null, null, "Storage", "removeDatabase", [name]);
-}
-
-module.exports = {
-    openDatabase: openDatabase,
-    removeDatabase: removeDatabase,
-    WinStorage: WinStorage
-};
 });
 
 // file: lib/common/pluginloader.js

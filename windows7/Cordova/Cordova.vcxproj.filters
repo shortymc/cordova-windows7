@@ -8,7 +8,6 @@
     <ClCompile Include="network.c" />
     <ClCompile Include="shell.c" />
     <ClCompile Include="notification.c" />
-    <ClCompile Include="storage.c" />
     <ClCompile Include="json.c" />
     <ClCompile Include="lib\sqlite\sqlite3.c" />
     <ClCompile Include="platform.c" />
@@ -19,6 +18,7 @@
     <ClCompile Include="compass.c" />
     <ClCompile Include="console.c" />
     <ClCompile Include="plugin_list.c" />
+    <ClCompile Include="websql.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="accel.h" />
@@ -30,7 +30,6 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="shell.h" />
     <ClInclude Include="notification.h" />
-    <ClInclude Include="storage.h" />
     <ClInclude Include="json.h" />
     <ClInclude Include="platform.h" />
     <ClInclude Include="file.h" />
@@ -39,6 +38,7 @@
     <ClInclude Include="compass.h" />
     <ClInclude Include="console.h" />
     <ClInclude Include="configuration.h" />
+    <ClInclude Include="websql.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

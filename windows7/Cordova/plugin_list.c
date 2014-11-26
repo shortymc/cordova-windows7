@@ -36,8 +36,8 @@
 #ifdef CORDOVA_NOTIFICATION_ENABLED
 # include "notification.h"
 #endif
-#ifdef CORDOVA_STORAGE_ENABLED
-# include "storage.h"
+#ifdef CORDOVA_WEBSQL_ENABLED
+# include "websql.h"
 #endif
 #ifdef CORDOVA_PLATFORM_ENABLED
 # include "platform.h"
@@ -77,8 +77,8 @@ void register_cordova_modules()
 #ifdef CORDOVA_NOTIFICATION_ENABLED
 	register_cordova_module(CORDOVA_MODULE(Notification));
 #endif
-#ifdef CORDOVA_STORAGE_ENABLED
-	register_cordova_module(CORDOVA_MODULE(Storage));
+#ifdef CORDOVA_WEBSQL_ENABLED
+	register_cordova_module(CORDOVA_MODULE(WebSql));
 #endif
 #ifdef CORDOVA_PLATFORM_ENABLED
 	register_cordova_module(CORDOVA_MODULE(Platform));
@@ -118,8 +118,8 @@ void close_cordova_modules()
 #ifdef CORDOVA_NOTIFICATION_ENABLED
 	close_cordova_module(CORDOVA_MODULE(Notification));
 #endif
-#ifdef CORDOVA_STORAGE_ENABLED
-	close_cordova_module(CORDOVA_MODULE(Storage));
+#ifdef CORDOVA_WEBSQL_ENABLED
+	close_cordova_module(CORDOVA_MODULE(WebSql));
 #endif
 #ifdef CORDOVA_PLATFORM_ENABLED
 	close_cordova_module(CORDOVA_MODULE(Platform));

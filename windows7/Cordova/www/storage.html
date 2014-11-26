@@ -7,7 +7,7 @@
         <script  type="text/javascript">
             function QuerySuccessCB(Tx, results) {
                 alert("Results: " + results.rows.length);
-                alert("resultSet[0].data: " + results.rows.resultSet[0].data);
+                alert("item(0).data: " + results.rows.item(0).data);
             }
 
             function populateDB(tx) {

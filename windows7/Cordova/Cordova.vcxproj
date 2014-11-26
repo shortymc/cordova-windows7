@@ -106,7 +106,7 @@
     <ClCompile Include="platform.c" />
     <ClCompile Include="plugin_list.c" />
     <ClCompile Include="shell.c" />
-    <ClCompile Include="storage.c" />
+    <ClCompile Include="websql.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="accel.h" />
@@ -126,7 +126,7 @@
     <ClInclude Include="platform.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="shell.h" />
-    <ClInclude Include="storage.h" />
+    <ClInclude Include="websql.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="lib\js\exec.js" />
