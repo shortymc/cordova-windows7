@@ -5873,8 +5873,11 @@ var Database = function (name, version, displayName, estimatedSize, creationCall
 
     var that = this;
 
-    var creationCallbackAsyncWrapper = creationCallback ? function () {
-        setTimeout(creationCallback, 0);
+    var creationCallbackAsyncWrapper = creationCallback ? function (dbCreated) {
+        if(dbCreated)
+            setTimeout(function() {
+                creationCallback(that);
+            }, 0);
     } : null;
 
     exec(creationCallbackAsyncWrapper, function (err) {

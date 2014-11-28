@@ -145,6 +145,7 @@ static HRESULT open_database(BSTR callback_id, BSTR args)
 	JsonItem item;
 	wchar_t *db_name;
 	wchar_t *folderpath;
+	BOOL db_created = FALSE;
 
 	if(!SUCCEEDED(SHGetKnownFolderPath(&CORDOVA_WEBSQL_FOLDERID, 0, NULL, &folderpath)))
 		return E_FAIL;
@@ -172,6 +173,7 @@ static HRESULT open_database(BSTR callback_id, BSTR args)
 		db = cordova_db->db;
 	else {
 		PathAppend(path, db_name);
+		db_created = !PathFileExists(path);
 		res = sqlite3_open16((const char *) path, &db);
 		if (res != SQLITE_OK) {
 			sqlite3_close(db);
@@ -188,7 +190,7 @@ static HRESULT open_database(BSTR callback_id, BSTR args)
 		db_list = cordova_db;
 	}
 
-	cordova_success_callback(callback_id, FALSE, NULL_MESSAGE);
+	cordova_success_callback(callback_id, FALSE, db_created ? L"true" : L"false");
 
 	return S_OK;
 }
