@@ -901,12 +901,12 @@ static HRESULT remove_recursively(BSTR callback_id, BSTR args)
 // FileReader
 // ---------------------------------------------------------------------------
 
-static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, BOOL is_base64)
+static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, LARGE_INTEGER startpos, LARGE_INTEGER endpos, BOOL is_base64)
 {
 	HRESULT res = S_OK;
 	CordovaFsError err;
 	HANDLE file = INVALID_HANDLE_VALUE;
-	ULARGE_INTEGER file_size;
+	ULARGE_INTEGER bytes_to_read;
 	BOOL is_dir;
 	char *buf = NULL;
 	int utf16_len;
@@ -935,16 +935,16 @@ static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, BOOL
 		goto out;
 	}
 
-	// Read file contents
-	file_size.LowPart = GetFileSize(file, &file_size.HighPart);
-	if (file_size.HighPart) {
-		file_fail_callback(callback_id, ABORT_ERR);
+	if (!SetFilePointerEx(file, startpos, NULL, FILE_BEGIN)) {
+		file_fail_callback(callback_id, INVALID_MODIFICATION_ERR);
 		goto out;
 	}
 
-	buf = (char *) malloc(file_size.LowPart + 1);
-	buf[file_size.LowPart] = 0;
-	if (!ReadFile(file, buf, file_size.LowPart, &read, NULL)) {
+	// Read file contents
+	bytes_to_read.QuadPart = endpos.QuadPart - startpos.QuadPart;
+	buf = (char *) malloc(bytes_to_read.LowPart + 1);
+	buf[bytes_to_read.LowPart] = 0;
+	if (!ReadFile(file, buf, bytes_to_read.LowPart, &read, NULL)) {
 		file_fail_callback(callback_id, ABORT_ERR);
 		goto out;
 	}
@@ -992,10 +992,14 @@ static HRESULT read_as_text(BSTR callback_id, BSTR args)
 	JsonItem item;
 	wchar_t *uri = NULL;
 	wchar_t *encoding = NULL;
+	LARGE_INTEGER startpos;
+	LARGE_INTEGER endpos;
 
 		// Check args
 	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,
 												JSON_VALUE_STRING,
+												JSON_VALUE_INT64,
+												JSON_VALUE_INT64,
 												JSON_VALUE_INVALID)) {
 		res = E_FAIL;
 		goto out;
@@ -1005,8 +1009,12 @@ static HRESULT read_as_text(BSTR callback_id, BSTR args)
 	uri = json_get_string_value(item);
 	item = json_array_get_next(item);
 	encoding = json_get_string_value(item);
+	item = json_array_get_next(item);
+	startpos.QuadPart = json_get_int64_value(item);
+	item = json_array_get_next(item);
+	endpos.QuadPart = json_get_int64_value(item);
 	
-	res = read_file(callback_id, uri, encoding, FALSE);
+	res = read_file(callback_id, uri, encoding, startpos, endpos, FALSE);
 
 out:
 	json_free_args(array);
@@ -1022,18 +1030,28 @@ static HRESULT read_as_data_url(BSTR callback_id, BSTR args)
 {
 	HRESULT res = S_OK;
 	JsonArray array;
+	JsonItem item;
 	wchar_t *uri = NULL;
+	LARGE_INTEGER startpos;
+	LARGE_INTEGER endpos;
 
 		// Check args
 	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,
+												JSON_VALUE_INT64,
+												JSON_VALUE_INT64,
 												JSON_VALUE_INVALID)) {
 		res = E_FAIL;
 		goto out;
 	}
 
-	uri = json_get_string_value(array);
+	item = json_array_get_first(array);
+	uri = json_get_string_value(item);
+	item = json_array_get_next(item);
+	startpos.QuadPart = json_get_int64_value(item);
+	item = json_array_get_next(item);
+	endpos.QuadPart = json_get_int64_value(item);
 	
-	res = read_file(callback_id, uri, L"UTF-8", TRUE);
+	res = read_file(callback_id, uri, L"UTF-8", startpos, endpos, TRUE);
 
 out:
 	json_free_args(array);
