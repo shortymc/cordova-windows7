@@ -908,6 +908,7 @@ static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, LARG
 	HANDLE file = INVALID_HANDLE_VALUE;
 	ULARGE_INTEGER bytes_to_read;
 	BOOL is_dir;
+	UINT codepage;
 	char *buf = NULL;
 	int utf16_len;
 	wchar_t *utf16_text = NULL;
@@ -949,15 +950,25 @@ static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, LARG
 		goto out;
 	}
 
+	if(!read) {
+		cordova_success_callback(callback_id, FALSE, L"''");
+		goto out;
+	}
+
 	// Convert buffer
-	if (_wcsicmp(encoding, L"UTF-8")) {
+	// see list of codepage identifiers at http://msdn.microsoft.com/en-us/library/windows/desktop/dd317756(v=vs.85).aspx
+	if (!_wcsicmp(encoding, L"UTF-8")) {
+		codepage = CP_UTF8;
+	} else if (!_wcsicmp(encoding, L"ISO-8859-1")) {
+		codepage = 28591;
+	} else {
 		file_fail_callback(callback_id, ABORT_ERR);
 		goto out;
 	}
 
-	utf16_len = MultiByteToWideChar(CP_UTF8, 0, buf, -1, NULL, 0); // First call to get length
+	utf16_len = MultiByteToWideChar(codepage, 0, buf, read+1, NULL, 0); // First call to get length
 	utf16_text = (wchar_t *) malloc(sizeof(wchar_t) * utf16_len);
-	if (!MultiByteToWideChar(CP_UTF8, 0, buf, -1, utf16_text, utf16_len)) {
+	if (!MultiByteToWideChar(codepage, 0, buf, read+1, utf16_text, utf16_len)) {
 		file_fail_callback(callback_id, ABORT_ERR);
 		goto out;
 	}
@@ -1013,7 +1024,7 @@ static HRESULT read_as_text(BSTR callback_id, BSTR args)
 	startpos.QuadPart = json_get_int64_value(item);
 	item = json_array_get_next(item);
 	endpos.QuadPart = json_get_int64_value(item);
-	
+
 	res = read_file(callback_id, uri, encoding, startpos, endpos, FALSE);
 
 out:
@@ -1022,6 +1033,41 @@ out:
 		free(uri);
 	if (encoding)
 		free(encoding);
+
+	return res;
+}
+
+static HRESULT read_as_binary_string(BSTR callback_id, BSTR args)
+{
+	HRESULT res = S_OK;
+	JsonArray array;
+	JsonItem item;
+	wchar_t *uri = NULL;
+	LARGE_INTEGER startpos;
+	LARGE_INTEGER endpos;
+
+		// Check args
+	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,
+												JSON_VALUE_INT64,
+												JSON_VALUE_INT64,
+												JSON_VALUE_INVALID)) {
+		res = E_FAIL;
+		goto out;
+	}
+
+	item = json_array_get_first(array);
+	uri = json_get_string_value(item);
+	item = json_array_get_next(item);
+	startpos.QuadPart = json_get_int64_value(item);
+	item = json_array_get_next(item);
+	endpos.QuadPart = json_get_int64_value(item);
+
+	res = read_file(callback_id, uri, L"ISO-8859-1", startpos, endpos, FALSE);
+
+out:
+	json_free_args(array);
+	if (uri)
+		free(uri);
 
 	return res;
 }
@@ -1078,6 +1124,7 @@ static HRESULT write(BSTR callback_id, BSTR args)
 	LARGE_INTEGER seek;
 	wchar_t response[20];
 	wchar_t *data = NULL;
+	size_t data_len;
 
 	// Check args
 	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,
@@ -1107,10 +1154,10 @@ static HRESULT write(BSTR callback_id, BSTR args)
 
 	// Write file
 	item = json_array_get_next(item);
-	data = json_get_string_value(item);
-	utf8_len = WideCharToMultiByte(CP_UTF8, 0, data, wcslen(data), NULL, 0, NULL, NULL); // First call to get length
+	data = json_get_string_value_and_length(item, &data_len);
+	utf8_len = WideCharToMultiByte(CP_UTF8, 0, data, data_len, NULL, 0, NULL, NULL); // First call to get length
 	utf8_text = (char *) malloc(utf8_len + 1);
-	if (!WideCharToMultiByte(CP_UTF8, 0, data, wcslen(data), utf8_text, utf8_len, NULL, NULL)) {
+	if (!WideCharToMultiByte(CP_UTF8, 0, data, data_len, utf8_text, utf8_len, NULL, NULL)) {
 		file_fail_callback(callback_id, ABORT_ERR);
 		goto out;
 	}
@@ -1248,6 +1295,8 @@ static HRESULT file_module_exec(BSTR callback_id, BSTR action, BSTR args, VARIAN
 	// FileReader
 	if (!wcscmp(action, L"readAsText"))
 			return read_as_text(callback_id, args);
+	if (!wcscmp(action, L"readAsBinaryString"))
+			return read_as_binary_string(callback_id, args);
 //	if (!wcscmp(action, L"readAsDataURL"))
 //			return read_as_data_url(callback_id, args);
 	// FileWriter

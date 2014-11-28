@@ -56,7 +56,7 @@ int json_get_int_value(JsonItem item);
 INT64 json_get_int64_value(JsonItem item);
 BOOL json_get_bool_value(JsonItem item);
 double json_get_double_value(JsonItem item);
-wchar_t *json_get_string_value(JsonItem item);
+wchar_t *json_get_string_value_and_length(JsonItem item, size_t *length);
 JsonObject json_get_object_value(JsonItem item);
 JsonArray json_get_array_value(JsonItem item);
 
@@ -66,3 +66,5 @@ JsonObjectItem json_object_find_prop(JsonObject object, const wchar_t *id, JsonV
 wchar_t *json_object_get_prop_id(JsonObjectItem item);
 __inline JsonObjectItem json_object_get_first(JsonObject object) { return (JsonObjectItem) object; }
 JsonObjectItem json_object_get_next(JsonObjectItem item);
+
+#define json_get_string_value(item) json_get_string_value_and_length(item, NULL);

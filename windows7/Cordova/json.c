@@ -363,7 +363,7 @@ static BOOL decode_unicode_char(const wchar_t *text, wchar_t *val_ptr)
 	return TRUE;
 }
 
-wchar_t *json_get_string_value(JsonItem item)
+wchar_t *json_get_string_value_and_length(JsonItem item, size_t *length)
 {
 	size_t src_index = 0;
 	size_t val_index = 0;
@@ -419,6 +419,8 @@ wchar_t *json_get_string_value(JsonItem item)
 
 	val[val_index] = 0;
 
+	if(length)
+		*length = val_index;
 	return val;
 }
 
