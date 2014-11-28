@@ -1118,26 +1118,34 @@ static HRESULT write(BSTR callback_id, BSTR args)
 	wchar_t *uri = NULL;
 	CordovaFsError err;
 	HANDLE file = INVALID_HANDLE_VALUE;
-	char *utf8_text = NULL;
-	int utf8_len;
+	char *output_text = NULL;
+	int output_len;
 	DWORD written;
 	LARGE_INTEGER seek;
 	wchar_t response[20];
 	wchar_t *data = NULL;
 	size_t data_len;
+	BOOL is_binary;
 
 	// Check args
 	if (!json_parse_and_validate_args(args, &array, JSON_VALUE_STRING,
 												JSON_VALUE_STRING,
 												JSON_VALUE_INT64,
+												JSON_VALUE_BOOL,
 												JSON_VALUE_INVALID)) {
 		res = E_FAIL;
 		goto out;
 	}
 	item = json_array_get_first(array);
+	uri = json_get_string_value(item);
+	item = json_array_get_next(item);
+	data = json_get_string_value_and_length(item, &data_len);
+	item = json_array_get_next(item);
+	seek.QuadPart = json_get_int64_value(item);
+	item = json_array_get_next(item);
+	is_binary = json_get_bool_value(item);
 	
 	// Convert src uri to path
-	uri = json_get_string_value(item);
 	full_path_size = MAX_PATH;
 	err = path_from_uri(uri, full_path, &full_path_size, FALSE, NULL);
 	if (err != FILE_NO_ERR) {
@@ -1153,23 +1161,26 @@ static HRESULT write(BSTR callback_id, BSTR args)
 	}
 
 	// Write file
-	item = json_array_get_next(item);
-	data = json_get_string_value_and_length(item, &data_len);
-	utf8_len = WideCharToMultiByte(CP_UTF8, 0, data, data_len, NULL, 0, NULL, NULL); // First call to get length
-	utf8_text = (char *) malloc(utf8_len + 1);
-	if (!WideCharToMultiByte(CP_UTF8, 0, data, data_len, utf8_text, utf8_len, NULL, NULL)) {
-		file_fail_callback(callback_id, ABORT_ERR);
-		goto out;
+	if(is_binary) {
+		output_len = data_len;
+		data_len = 0;
+		output_text = (char *)data;
+		data = NULL;
+	} else {
+		output_len = WideCharToMultiByte(CP_UTF8, 0, data, data_len, NULL, 0, NULL, NULL); // First call to get length
+		output_text = (char *) malloc(output_len + 1);
+		if (!WideCharToMultiByte(CP_UTF8, 0, data, data_len, output_text, output_len, NULL, NULL)) {
+			file_fail_callback(callback_id, ABORT_ERR);
+			goto out;
+		}
 	}
 
-	item = json_array_get_next(item);
-	seek.QuadPart = json_get_int64_value(item);
 	if (!SetFilePointerEx(file, seek, NULL, FILE_BEGIN)) {
 		file_fail_callback(callback_id, INVALID_MODIFICATION_ERR);
 		goto out;
 	}
 
-	if (!WriteFile(file, utf8_text, utf8_len, &written, NULL)) {
+	if (!WriteFile(file, output_text, output_len, &written, NULL)) {
 		file_fail_callback(callback_id, ABORT_ERR);
 		goto out;
 	}
@@ -1183,8 +1194,8 @@ out:
 		free(uri);
 	if (data)
 		free(data);
-	if (utf8_text)
-		free(utf8_text);
+	if (output_text)
+		free(output_text);
 	if (file != INVALID_HANDLE_VALUE)
 		CloseHandle(file);
 
