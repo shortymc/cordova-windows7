@@ -67,7 +67,7 @@ BOOL text_buf_append(TextBuf buf, const wchar_t *text)
 }
 
 static const wchar_t json_escape_control_chars[] = {
-	0, 0, 0, 0, 0, 0, 0, 0,
+	L'0', 0, 0, 0, 0, 0, 0, 0,
 	L'b', L't', L'n', L'v', L'f', L'r'
 };
 BOOL text_buf_append_with_json_escaping_len(TextBuf buf, const wchar_t *text, size_t text_len)
@@ -89,9 +89,12 @@ BOOL text_buf_append_with_json_escaping_len(TextBuf buf, const wchar_t *text, si
 
 	while(pos < text_len) {
 		c = text[pos++];
-		if(c < sizeof(json_escape_control_chars) / sizeof(json_escape_control_chars[0]) && c >= 8) {
+		if(c < sizeof(json_escape_control_chars) / sizeof(json_escape_control_chars[0])) {
 			buf->wbuf[buf->len++] = L'\\';
-			buf->wbuf[buf->len++] = json_escape_control_chars[c];
+			if(json_escape_control_chars[c])
+				buf->wbuf[buf->len++] = json_escape_control_chars[c];
+			else
+				buf->wbuf[buf->len++] = c;
 		} else {
 			if(c == L'"' || c == L'\\')
 				buf->wbuf[buf->len++] = L'\\';
