@@ -5875,9 +5875,7 @@ var Database = function (name, version, displayName, estimatedSize, creationCall
 
     var creationCallbackAsyncWrapper = creationCallback ? function (dbCreated) {
         if(dbCreated)
-            setTimeout(function() {
-                creationCallback(that);
-            }, 0);
+            creationCallback(that);
     } : null;
 
     exec(creationCallbackAsyncWrapper, function (err) {
