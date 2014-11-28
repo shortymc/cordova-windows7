@@ -341,14 +341,13 @@ double json_get_double_value(JsonItem item)
 	return item->value.as_double;
 }
 
-static wchar_t decode_unicode_char(const wchar_t *text)
+static BOOL decode_unicode_char(const wchar_t *text, wchar_t *val_ptr)
 {
 	wchar_t val = 0;
 	int i;
-	const BYTE *buf = (const BYTE *) text;
 
 	for(i = 1; i <= 4; i++) {
-		BYTE c = buf[i];
+		BYTE c = text[i];
 		val <<= 4;
 		if(isdigit(c))
 			val += c - '0';
@@ -357,10 +356,11 @@ static wchar_t decode_unicode_char(const wchar_t *text)
 		else if(c >= 'A' && c <= 'F')
 			val += c - 'A' + 10;
 		else
-			return 0;
+			return FALSE;
 	}
 
-	return val;
+	*val_ptr = val;
+	return TRUE;
 }
 
 wchar_t *json_get_string_value(JsonItem item)
@@ -380,11 +380,9 @@ wchar_t *json_get_string_value(JsonItem item)
 			switch(text[src_index]) {
 			case 'u':
 				if ((item->value_as_string_len - src_index) > 3) {
-					wchar_t unicode_val = decode_unicode_char(text + src_index);
-					if (val) {
-						val[val_index] = unicode_val;
-						src_index += 3;
-					} else
+					if(decode_unicode_char(text + src_index, &val[val_index]))
+						src_index += 4;
+					else
 						val[val_index] = text[src_index];
 				} else
 					val[val_index] = text[src_index];
