@@ -5975,6 +5975,10 @@ Database.prototype.transaction = function (cb, onError, onSuccess, preflight, po
 
                         try {
                             cb(tx);
+                            if (tx.transactionStarted === false && tx.statementsQueue.length === 0) {
+                                // empty transaction - lets close it...
+                                tx.statementCompleted();
+                            }
                         } catch (cbEx) {
                             me.Log('transaction.run.connectionSuccess, executeTransaction callback error: ' + JSON.stringify(cbEx));
                             me.transactionError(tx, cbEx);
