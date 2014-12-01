@@ -24,6 +24,7 @@
 #include <Shellapi.h>
 #include <wininet.h>
 #include <WinReg.h>
+#include <Wincrypt.h>
 
 #include "file.h"
 #include "common.h"
@@ -34,6 +35,7 @@
 #ifdef CORDOVA_FILE_ENABLED
 
 #pragma comment(lib, "shlwapi.lib")
+#pragma comment(lib, "crypt32.lib")
 
 static DWORD full_path_size;
 static wchar_t full_path[MAX_PATH + 1];
@@ -910,7 +912,7 @@ static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, LARG
 	BOOL is_dir;
 	UINT codepage;
 	char *buf = NULL;
-	int utf16_len;
+	DWORD utf16_len;
 	wchar_t *utf16_text = NULL;
 	TextBuf response;
 	DWORD read;
@@ -956,31 +958,42 @@ static HRESULT read_file(BSTR callback_id, wchar_t *uri, wchar_t *encoding, LARG
 	}
 
 	// Convert buffer
-	// see list of codepage identifiers at http://msdn.microsoft.com/en-us/library/windows/desktop/dd317756(v=vs.85).aspx
-	if (!_wcsicmp(encoding, L"UTF-8")) {
-		codepage = CP_UTF8;
-	} else if (!_wcsicmp(encoding, L"ISO-8859-1")) {
-		codepage = 28591;
+	if (is_base64) {
+		if (!CryptBinaryToString((const BYTE *)buf, read+1, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, NULL, &utf16_len)) { // First call to get length
+			file_fail_callback(callback_id, ABORT_ERR);
+			goto out;
+		}
+		utf16_text = (wchar_t *) malloc(sizeof(wchar_t) * utf16_len);
+		if (!CryptBinaryToString((const BYTE *)buf, read+1, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, utf16_text, &utf16_len)) {
+			file_fail_callback(callback_id, ABORT_ERR);
+			goto out;
+		}
 	} else {
-		file_fail_callback(callback_id, ABORT_ERR);
-		goto out;
-	}
+		// see list of codepage identifiers at http://msdn.microsoft.com/en-us/library/windows/desktop/dd317756(v=vs.85).aspx
+		if (!_wcsicmp(encoding, L"UTF-8")) {
+			codepage = CP_UTF8;
+		} else if (!_wcsicmp(encoding, L"ISO-8859-1")) {
+			codepage = 28591;
+		} else {
+			file_fail_callback(callback_id, ABORT_ERR);
+			goto out;
+		}
 
-	utf16_len = MultiByteToWideChar(codepage, 0, buf, read+1, NULL, 0); // First call to get length
-	utf16_text = (wchar_t *) malloc(sizeof(wchar_t) * utf16_len);
-	if (!MultiByteToWideChar(codepage, 0, buf, read+1, utf16_text, utf16_len)) {
-		file_fail_callback(callback_id, ABORT_ERR);
-		goto out;
+		utf16_len = MultiByteToWideChar(codepage, 0, buf, read, NULL, 0); // First call to get length
+		utf16_text = (wchar_t *) malloc(sizeof(wchar_t) * utf16_len);
+		if (!MultiByteToWideChar(codepage, 0, buf, read, utf16_text, utf16_len)) {
+			file_fail_callback(callback_id, ABORT_ERR);
+			goto out;
+		}
+//		utf16_len--;
 	}
 
 	response = text_buf_new();
 	text_buf_append(response, L"\"");
 	if (is_base64) {
 		text_buf_append(response, base64_prefix);
-		// FIXME: convert utf16_text to base64 and append to buffer, and enable readAsDataURL at the bottom of this file
-	} else {
-		text_buf_append_with_json_escaping_len(response, utf16_text, utf16_len - 1);
 	}
+	text_buf_append_with_json_escaping_len(response, utf16_text, utf16_len);
 	text_buf_append(response, L"\"");
 	cordova_success_callback(callback_id, FALSE, text_buf_get(response));
 	text_buf_free(response);
@@ -1308,8 +1321,8 @@ static HRESULT file_module_exec(BSTR callback_id, BSTR action, BSTR args, VARIAN
 			return read_as_text(callback_id, args);
 	if (!wcscmp(action, L"readAsBinaryString"))
 			return read_as_binary_string(callback_id, args);
-//	if (!wcscmp(action, L"readAsDataURL"))
-//			return read_as_data_url(callback_id, args);
+	if (!wcscmp(action, L"readAsDataURL"))
+			return read_as_data_url(callback_id, args);
 	// FileWriter
 	if (!wcscmp(action, L"write"))
 			return write(callback_id, args);
