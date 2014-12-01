@@ -6395,7 +6395,7 @@ WebSQL.openDatabase = window.openDatabase || function (name, version, displayNam
 };
 
 WebSQL.removeDatabase = function (name) {
-    exec(null, null, "WebSql", "removeDatabase", [name]);
+    exec(null, null, "WebSql", "remove", [name]);
 };
 
 module.exports = WebSQL;

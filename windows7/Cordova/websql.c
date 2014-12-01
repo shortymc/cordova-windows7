@@ -397,7 +397,7 @@ HRESULT websql_exec(BSTR callback_id, BSTR action, BSTR args, VARIANT *result)
 		return disconnect(callback_id, args);
 	if (!wcscmp(action, L"open"))
 		return open_database(callback_id, args);
-	if (!wcscmp(action, L"removeDatabase"))
+	if (!wcscmp(action, L"remove"))
 		return remove_database(callback_id, args);
 
 	return DISP_E_MEMBERNOTFOUND;
