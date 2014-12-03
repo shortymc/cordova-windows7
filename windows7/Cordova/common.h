@@ -20,23 +20,23 @@
 #include <knownfolders.h>
 #include "configuration.h"
 
-// required cordova plugins for cordova to be functional (for now)
+// required cordova plugins for cordova to be functional (for now; might change with later versions of cordova-js)
 #ifndef CORDOVA_DEVICE_ENABLED
-# define CORDOVA_DEVICE_ENABLED 1
+# define CORDOVA_DEVICE_ENABLED
 #endif
 #ifndef CORDOVA_NETWORKSTATUS_ENABLED
-# define CORDOVA_NETWORKSTATUS_ENABLED 1
+# define CORDOVA_NETWORKSTATUS_ENABLED
 #endif
 #ifndef CORDOVA_WEBSQL_ENABLED
-# define CORDOVA_WEBSQL_ENABLED 1
+# define CORDOVA_WEBSQL_ENABLED
 #endif
 
 // plugin dependencies
 #if defined(CORDOVA_FILETRANSFER_ENABLED) && !defined(CORDOVA_FILE_ENABLED)
-# define CORDOVA_FILE_ENABLED 1
+# define CORDOVA_FILE_ENABLED
 #endif
 #if defined(CORDOVA_FILE_ENABLED) && !defined(CORDOVA_DEVICE_ENABLED)
-# define CORDOVA_DEVICE_ENABLED 1
+# define CORDOVA_DEVICE_ENABLED
 #endif
 
 typedef enum {

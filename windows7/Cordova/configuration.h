@@ -21,6 +21,9 @@
 
 #define CORDOVA_REG_KEY	L"Software\\Intel\\Cordova"
 
+//#define CORDOVA_SHOW_MAXIMIZED
+
+
 // where to store persistent file storage and databases
 // FolderIDs: e.g. FOLDERID_RoamingAppData, FOLDERID_LocalAppData, FOLDERID_ProgramData
 #define CORDOVA_FILE_PERSISTENT_STORAGE_FOLDERID FOLDERID_RoamingAppData
@@ -44,7 +47,7 @@
 
 #ifdef _DEBUG
 // opens the console in a new window (otherwise it uses the default console which is only visible when started from command prompt)
-# define CORDOVA_CONSOLE_OPEN_NEW_WINDOW 1
+# define CORDOVA_CONSOLE_OPEN_NEW_WINDOW
 #endif
 
 
@@ -59,15 +62,15 @@
 
 
 // which plugins should be loaded?
-#define CORDOVA_DEVICE_ENABLED 1
-#define CORDOVA_CAMERA_ENABLED 1
-#define CORDOVA_CAPTURE_ENABLED 1
-#define CORDOVA_ACCELEROMETER_ENABLED 1
-#define CORDOVA_NETWORKSTATUS_ENABLED 1
-#define CORDOVA_NOTIFICATION_ENABLED 1
-#define CORDOVA_WEBSQL_ENABLED 1
-#define CORDOVA_PLATFORM_ENABLED 1
-#define CORDOVA_FILE_ENABLED 1
-#define CORDOVA_FILETRANSFER_ENABLED 1
-#define CORDOVA_COMPASS_ENABLED 1
-#define CORDOVA_CONSOLE_ENABLED 1
+#define CORDOVA_DEVICE_ENABLED
+#define CORDOVA_CAMERA_ENABLED
+#define CORDOVA_CAPTURE_ENABLED
+#define CORDOVA_ACCELEROMETER_ENABLED
+#define CORDOVA_NETWORKSTATUS_ENABLED
+#define CORDOVA_NOTIFICATION_ENABLED
+#define CORDOVA_WEBSQL_ENABLED
+#define CORDOVA_PLATFORM_ENABLED
+#define CORDOVA_FILE_ENABLED
+#define CORDOVA_FILETRANSFER_ENABLED
+#define CORDOVA_COMPASS_ENABLED
+#define CORDOVA_CONSOLE_ENABLED
