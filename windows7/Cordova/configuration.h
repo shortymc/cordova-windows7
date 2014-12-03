@@ -48,6 +48,16 @@
 #endif
 
 
+// which keyboard shortcuts should be enabled?
+#define CORDOVA_KEYBOARD_ENABLE_CUT_COPY_PASTE
+//#define CORDOVA_KEYBOARD_ENABLE_FIND
+//#define CORDOVA_KEYBOARD_ENABLE_PRINT
+//#define CORDOVA_KEYBOARD_ENABLE_ZOOM
+//#define CORDOVA_KEYBOARD_ENABLE_TAB_NAVIGATION
+//#define CORDOVA_KEYBOARD_ENABLE_RELOAD
+//#define CORDOVA_KEYBOARD_ENABLE_BACK
+
+
 // which plugins should be loaded?
 #define CORDOVA_DEVICE_ENABLED 1
 #define CORDOVA_CAMERA_ENABLED 1

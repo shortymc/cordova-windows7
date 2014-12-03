@@ -57,6 +57,7 @@
 IWebBrowser2*			browser_web_if;			// IWebBrowser2 interface to the browser control
 IOleObject*				browser_ole_if;			// IOleObject interface to the browser control, required to pass various OLE related parameters
 IOleInPlaceObject*		browser_ipo_if;			// IOleInPlaceObject interface to the browser control, required to implement IOleInPlaceSite:OnPosRectChange
+IOleInPlaceActiveObject*	browser_ipao_if;	// IOleInPlaceActiveObject interface to the browser control, required to implement IDocHostUIHandler:TranslateAccelerator
 
 IOleClientSite*			browser_cs;
 IOleInPlaceSite*		browser_ips;
@@ -535,7 +536,7 @@ HRESULT STDMETHODCALLTYPE DUIH_ResizeBorder(IDocHostUIHandler * This, LPCRECT pr
 
 HRESULT STDMETHODCALLTYPE DUIH_TranslateAccelerator(IDocHostUIHandler * This, LPMSG lpMsg, const GUID *pguidCmdGroup, DWORD nCmdID)
 {
-	NOT_IMPLEMENTED
+	return S_FALSE;	// request default action for key
 }
 
 HRESULT STDMETHODCALLTYPE DUIH_GetOptionKeyPath(IDocHostUIHandler * This, LPOLESTR *pchKey, DWORD dw)
@@ -563,7 +564,8 @@ HRESULT STDMETHODCALLTYPE DUIH_TranslateUrl(IDocHostUIHandler * This, DWORD dwTr
 
 HRESULT STDMETHODCALLTYPE DUIH_FilterDataObject(IDocHostUIHandler * This, IDataObject *pDO, IDataObject **ppDORet)
 {
-	NOT_IMPLEMENTED
+	*ppDORet = NULL;
+	return S_FALSE;	// ???
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1083,12 +1085,52 @@ LRESULT CALLBACK CordovaShellWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 
 	switch (uMsg)
 	{
-#ifdef CORDOVA_PLATFORM_ENABLED
 		case WM_KEYDOWN:
+#ifdef CORDOVA_PLATFORM_ENABLED
 			if (wParam == VK_BACK)
 				ProcessBackKeyStroke();
-			break;
 #endif
+			switch (wParam) {
+#ifdef CORDOVA_KEYBOARD_ENABLE_CUT_COPY_PASTE
+			case /*ctrl-*/'X':		// cut
+			case /*ctrl-*/'C':		// copy
+			case /*ctrl-*/'V':		// paste
+			case /*ctrl-*/'A':		// select all
+#endif
+
+#ifdef CORDOVA_KEYBOARD_ENABLE_FIND
+			case /*ctrl-*/'F':		// find
+#endif
+#ifdef CORDOVA_KEYBOARD_ENABLE_PRINT
+			case /*ctrl-*/'P':		// print
+#endif
+#ifdef CORDOVA_KEYBOARD_ENABLE_ZOOM
+			case /*ctrl-*/'+':		// zoom in
+			case /*ctrl-*/'-':		// zoom out
+#endif
+			case /*ctrl-*/'0':		// zoom 100%	-- always enabled, because ctrl+mouseweel zoom is also always enabled
+				if (!GetKeyState(VK_CONTROL))
+					goto ignore_message;
+				// no break
+#ifdef CORDOVA_KEYBOARD_ENABLE_TAB_NAVIGATION
+			case VK_TAB:			// keyboard navigation
+#endif
+#ifdef CORDOVA_KEYBOARD_ENABLE_RELOAD
+			case VK_F5:				// reload
+#endif
+#ifdef CORDOVA_KEYBOARD_ENABLE_BACK
+			case VK_BACK:			// navigate to previous page
+#endif
+				if ( browser_ipao_if && browser_ipao_if->lpVtbl )
+				{
+					MSG msg;
+					msg.message = uMsg;
+					msg.wParam = wParam;
+					msg.lParam = lParam;
+					return browser_ipao_if->lpVtbl->TranslateAccelerator(browser_ipao_if, &msg);
+				}
+			}
+			break;
 
 		case WM_CLOSE:
 			current_state = STATE_ENDING;	// The window will get deactivated before being destroyed
@@ -1168,11 +1210,9 @@ LRESULT CALLBACK CordovaShellWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 				}
 			}
 			break;
-
-		default:
-			return DefWindowProc(hWnd, uMsg, wParam, lParam);
 	}
 
+ignore_message:
 	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
@@ -1247,6 +1287,9 @@ void create_browser_object (void)
 
 		// Also get a IOleInPlaceObject interface, as it's the expected way to resize the browser control
 		browser_web_if->lpVtbl->QueryInterface(browser_web_if, &IID_IOleInPlaceObject, &browser_ipo_if);
+
+		// Get a IOleInPlaceActiveObject interface
+		browser_web_if->lpVtbl->QueryInterface(browser_web_if, &IID_IOleInPlaceActiveObject, &browser_ipao_if);
 
 		// Connect an event sink to the browser so we can get notified when there's an update to the document title
 
@@ -1470,6 +1513,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		else
 		{
 			TranslateMessage(&msg);
+			if (msg.message >= WM_KEYFIRST && msg.message <= WM_KEYLAST)
+				SendMessage(hWnd, msg.message, msg.wParam, msg.lParam);	// pass keyboard messages to CordovaShellWndProc
 			DispatchMessage(&msg);
 		}
 	} 
