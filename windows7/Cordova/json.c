@@ -521,9 +521,11 @@ JsonObjectItem json_object_prop_at(JsonObject object, int position)
 JsonObjectItem json_object_find_prop(JsonObject object, const wchar_t *id, JsonValueType type)
 {
 	while (object != NULL) {
-		if (!wcsncmp(id, (wchar_t *) object->tag, wcslen(id)) &&
-			wcslen(id) == object->tag_len && is_type_compatible(object->value_type, type))
-				return (JsonObjectItem) object;
+		if(object->tag) {
+			if (!wcsncmp(id, (wchar_t *) object->tag, wcslen(id)) &&
+				wcslen(id) == object->tag_len && is_type_compatible(object->value_type, type))
+					return (JsonObjectItem) object;
+		}
 		object = (struct _JsonObjectItem *) object->next;
 	}
 
