@@ -22,6 +22,7 @@
 #define CORDOVA_REG_KEY	L"Software\\Intel\\Cordova"
 
 //#define CORDOVA_SHOW_MAXIMIZED
+#define CORDOVA_ENABLE_SCROLLING
 
 
 // where to store persistent file storage and databases
