@@ -2289,7 +2289,7 @@ void notify_capture_result (void)
 
 HRESULT camera_exec(BSTR callback_id, BSTR action, BSTR args, VARIANT *result)
 {
-	if (!wcscmp(action, L"getPicture"))
+	if (!wcscmp(action, L"takePicture"))
 	{
 		last_callback_id = SysAllocString(callback_id);
 		setup_capture_window(hWnd, FALSE);
