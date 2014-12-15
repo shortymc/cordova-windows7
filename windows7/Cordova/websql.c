@@ -67,7 +67,7 @@ static void remove_cordova_db(CordovaDb *db)
 	CordovaDb *item;
 
 	if (db_list == db)
-		db_list = NULL;
+		db_list = db_list->next;
 	else {
 		item = db_list;
 		while (item) {
@@ -169,9 +169,10 @@ static HRESULT open_database(BSTR callback_id, BSTR args)
 	json_free_args(array);
 
 	cordova_db = find_cordova_db(db_name);
-	if (cordova_db != NULL)
+	if (cordova_db != NULL) {
 		db = cordova_db->db;
-	else {
+		free (db_name);
+	} else {
 		PathAppend(path, db_name);
 		db_created = !PathFileExists(path);
 		res = sqlite3_open16((const char *) path, &db);
@@ -238,6 +239,7 @@ static HRESULT connect(BSTR callback_id, BSTR args)
 		cordova_fail_callback(callback_id, FALSE, CB_GENERIC_ERROR, L"{code:SQLError.DATABASE_ERR,message:\"Database error\"}");
 	}
 
+	free (db_name);
 	return S_OK;
 }
 
@@ -252,8 +254,8 @@ static HRESULT execute_sql(BSTR callback_id, BSTR args)
 	HRESULT res = S_OK;
 	sqlite3 *db;
 	sqlite3_stmt *stmt = NULL;
-	JsonArray array;
-	JsonItem item;
+	JsonArray array = NULL;
+	JsonItem item = NULL;
 	JsonItem sql_arg;
 	TextBuf response;
 	wchar_t *command = NULL;
