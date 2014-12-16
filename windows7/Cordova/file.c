@@ -322,6 +322,8 @@ static HRESULT read_entries(BSTR callback_id, BSTR args)
 	TextBuf response;
 	BOOL next;
 	wchar_t cur_path[MAX_PATH + 1];
+	wchar_t base_path[MAX_PATH + 1];
+	DWORD base_path_size = MAX_PATH;
 
 	response = text_buf_new();
 
@@ -335,7 +337,7 @@ static HRESULT read_entries(BSTR callback_id, BSTR args)
 	// Convert to path
 	uri = json_get_string_value(array);
 	full_path_size = MAX_PATH;
-	err = path_from_uri(uri, full_path, &full_path_size, TRUE, &is_dir);
+	err = path_from_uri(uri, base_path, &base_path_size, TRUE, &is_dir);
 	if (err == FILE_NO_ERR && !is_dir)
 		err = TYPE_MISMATCH_ERR;
 	if (err != FILE_NO_ERR) {
@@ -344,7 +346,7 @@ static HRESULT read_entries(BSTR callback_id, BSTR args)
 	}
 
 	// Read dir entries
-	wsprintf(cur_path, L"%s%s", full_path, L"*");
+	wsprintf(cur_path, L"%s\\%s", base_path, L"*");
 
 	text_buf_append(response, L"[");
 
@@ -363,7 +365,7 @@ static HRESULT read_entries(BSTR callback_id, BSTR args)
 	do {
 		wchar_t *entry = NULL;
 
-		wsprintf(cur_path, L"%s%s", full_path, ffd.cFileName);
+		wsprintf(cur_path, L"%s\\%s", base_path, ffd.cFileName);
 		if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 			if(wcscmp(ffd.cFileName, L".") && wcscmp(ffd.cFileName, L".."))
 				entry = make_entry(TRUE, cur_path, NULL);
