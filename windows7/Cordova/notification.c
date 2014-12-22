@@ -112,7 +112,7 @@ LRESULT DisplayMessage(wchar_t* title, int title_len, wchar_t* message, int mess
 	int font_len = wcslen(FONT_NAME);
 
 	// Compute length of work buffer and allocate it
-	buf_len = sizeof(DLGTEMPLATE) + 4 + title_len + 4 + font_len + 2 + sizeof(DLGITEMTEMPLATE) + 4 + message_len + 4 + (num_buttons * (sizeof(DLGITEMTEMPLATE) + 4 + 50 /* estimated button text len */ + 4))
+	buf_len = sizeof(DLGTEMPLATE) + 4 + title_len * sizeof(wchar_t) + 4 + font_len * sizeof(wchar_t) + 2 + sizeof(DLGITEMTEMPLATE) + 4 + message_len * sizeof(wchar_t) + 4 + (num_buttons * (sizeof(DLGITEMTEMPLATE) + 4 + 50 /* estimated button text len */ + 4))
 				+ 100; // Allow for into account possible alignment padding as well as extra fields (class atoms, user data)
 
 	for (i=0; i<num_buttons; i++)
