@@ -108,8 +108,10 @@ LRESULT DisplayMessage(wchar_t* title, int title_len, wchar_t* message, int mess
 	int button_height = num_buttons > 0 ? 15 : 0;
 	int num_gaps = num_buttons ? num_buttons -1 : 0;
 	int static_width = num_buttons ? num_buttons * button_width + button_gap * num_gaps : 80;
+	int button_padding = 300 < static_width ? 0 : (300 - static_width) >> 1;
 	int buf_len;
 	int font_len = wcslen(FONT_NAME);
+	static_width += button_padding << 1;
 
 	// Compute length of work buffer and allocate it
 	buf_len = sizeof(DLGTEMPLATE) + 4 + title_len * sizeof(wchar_t) + 4 + font_len * sizeof(wchar_t) + 2 + sizeof(DLGITEMTEMPLATE) + 4 + message_len * sizeof(wchar_t) + 4 + (num_buttons * (sizeof(DLGITEMTEMPLATE) + 4 + 50 /* estimated button text len */ + 4))
@@ -176,7 +178,7 @@ LRESULT DisplayMessage(wchar_t* title, int title_len, wchar_t* message, int mess
     // Empty user data block
 	*cursor++ = 0;
 
-	next_x = left_margin;
+	next_x = left_margin + button_padding;
 	
 	// Additional controls
 	for (i=0; i<num_buttons; i++)
