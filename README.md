@@ -1,15 +1,11 @@
+# Apache Cordova for Windows
+===
+
  Windows 7 is an old version of Windows but it's used by a lot of people in the world.
   Many people don't know how made an application for windows but many of them know web technology.
   Windows seven software can run on most recent windows systems so it's the best candidate for making retro compatible programs.
   The possibility to make applications with languages like javascript, css or html can permit to every web knowledge to be executed on windows system.
  
- 
-
-# Apache Cordova for Windows
-===
-
-This repo/branch contains the Windows7 Cordova platform code which is not currently under active development.
-
 
  Usage :
  
