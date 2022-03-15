@@ -1,4 +1,4 @@
-# Apache Cordova for Windows
+#  executable-html is a fork of Apache Cordova for Windows
 ===
 
  Windows 7 is an old version of Windows but it's used by a lot of people in the world.
